@@ -718,7 +718,11 @@ STATIC mp_obj_t py_lcd_fill_rectangle(size_t n_args, const mp_obj_t *args)
     {
         color = mp_obj_get_int(args[4]);
     }
-    if(x0 >= lcd_para.width || y0 >= lcd_para.height || x1 >= lcd_para.width || y1 >= lcd_para.height){
+    uint16_t l_dim;
+    if(lcd_para.width>lcd_para.height)
+        l_dim = lcd_para.width;
+    else l_dim = lcd_para.height;
+    if(x0 >= l_dim || y0 >= l_dim || x1 >= l_dim || y1 >= l_dim){
         mp_raise_ValueError("arg error");
     }
     lcd->fill_rectangle(x0, y0, x1, y1, color);
