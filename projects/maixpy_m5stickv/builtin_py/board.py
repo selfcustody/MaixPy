@@ -11,7 +11,14 @@ config = json.loads("""
         "width": 240,
         "invert": 0,
         "dir": 40,
-        "lcd_type": 3
+        "lcd_type": 3,
+        "touch": false,
+        "font": [8, 14]
+        "orientation":[1, 2]
+    },
+    "sensor":{
+        "flipped": false,
+        "lenses": false
     },
     "sdcard": {
         "sclk": 30,

@@ -11,7 +11,14 @@ config = json.loads("""
         "width": 480,
         "invert": 1,
         "dir": 40,
-        "lcd_type": 2
+        "lcd_type": 2,
+        "touch": true,
+        "font": [16, 24],
+        "orientation": [1, 0]
+    },
+    "sensor":{
+        "flipped": true,
+        "lenses": false
     },
     "sdcard": {
         "sclk": 11,
@@ -44,9 +51,12 @@ config = json.loads("""
         "SPI_CS": 12
     },
     "krux.pins": {
-        "BUTTON_A": 23,
+        "BUTTON_A": 16,
         "BUTTON_B": 20,
+        "BUTTON_C": 23,
         "LED_W": 32
+        "I2C_SDA": 27,
+        "I2C_SCL": 24,
     }
 }
 """)
