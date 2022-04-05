@@ -54,9 +54,9 @@ config = json.loads("""
         "BUTTON_A": 16,
         "BUTTON_B": 20,
         "BUTTON_C": 23,
-        "LED_W": 32
+        "LED_W": 32,
         "I2C_SDA": 27,
-        "I2C_SCL": 24,
+        "I2C_SCL": 24
     }
 }
 """)

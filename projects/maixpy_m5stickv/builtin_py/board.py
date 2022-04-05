@@ -13,8 +13,9 @@ config = json.loads("""
         "dir": 40,
         "lcd_type": 3,
         "touch": false,
-        "font": [8, 14]
-        "orientation":[1, 2]
+        "font": [8, 14],
+        "orientation":[1, 2],
+        "qr_colors":[16904, 61307]
     },
     "sensor":{
         "flipped": false,
