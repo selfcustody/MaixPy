@@ -10,14 +10,7 @@ config = json.loads("""
         "height": 240,
         "width": 320,
         "invert": 0,
-        "lcd_type": 0,
-        "touch": false,
-        "font": [8, 16],
-        "orientation":[1, 0]
-    },
-    "sensor":{
-        "flipped": true,
-        "lenses": true
+        "lcd_type": 0
     },
     "sdcard": {
         "sclk": 27,
@@ -34,9 +27,20 @@ config = json.loads("""
       "MIC0_DATA": 20,
       "MIC0_BCK": 18
     },
-    "krux.pins": {
-        "BUTTON_A": 21,
-        "BUTTON_B": 22
+    "krux": {
+        "pins":{
+            "BUTTON_A": 21,
+            "BUTTON_B": 22
+        },
+        "display": {
+            "touch": false,
+            "font": [8, 16],
+            "orientation":[1, 0]
+        },
+        "sensor": {
+            "flipped": true,
+            "lenses": true
+        }
     }
 }
 """)

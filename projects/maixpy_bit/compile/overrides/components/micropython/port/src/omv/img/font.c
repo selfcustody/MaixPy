@@ -293,54 +293,26 @@ int font_utf8_strlen(mp_obj_t str)
   return count;
 }
 
-void imlib_draw_font(image_t *img, int x_off, int y_off, int c, float scale, uint8_t font_h, uint8_t font_w, const uint8_t *font)
+void imlib_draw_font(image_t *img, int x_off, int y_off, int c, uint8_t font_h, uint8_t font_w, const uint8_t *font)
 {
-    // It will be replaced by *.SVG.
-    /* font ↑ ↓ ↝ →
-        01 02 03 04 
-        05 06 07 08
-        09 10 11 12
-        13 14 15 16
-        1. ↓ 01 05 09 13
-        2. → 01 02 03 04
-        3. Got it?
-    */
-    for (int y = 0, yy = fast_roundf(font_h * scale); y < yy; y++) {
-        uint8_t pos = fast_roundf(y / scale);
-        uint32_t tmp = font[pos];
-        for (uint8_t i = 1; i < fast_ceilf(font_w / 8); i++) {
+    for (uint8_t y = 0, yy = font_h; y < yy; y++) {
+        uint32_t tmp = font[y];
+        for (uint8_t i = 1; i < font_w / 8; i++) {
             tmp <<= 8;
-            tmp |= font[pos + (i * font_h)];
+            tmp |= font[y + (i * font_h)];
         }
-        for (uint8_t x = 0, xx = fast_roundf(font_w * scale); x < xx; x++) {
-            if (tmp & (1 << (font_w - 1 - fast_roundf(x / scale)))) {
+        for (uint8_t x = 0, xx = font_w; x < xx; x++) {
+            if (tmp & (1 << (font_w - 1 - x))) {
                 imlib_set_pixel(img, (x_off + x), (y_off + y), c);
             }
         }
     }
 }
 
-// def draw_string(img, x, y, c, s, string, width, high, fonts, space=1):
-//     i = 0
-//     pos = 0
-//     while i < len(string):
-//         utfbytes = encode_get_utf8_size(string[i])
-//         print(i, string[i], utfbytes, string[i:i+utfbytes])
-//         tmp = encode_utf8_to_unicode(string[i:i+utfbytes])
-//         i += utfbytes
-//         pos += 1
-//         fonts.seek(tmp * int(high*(width/8)))
-//         img.draw_font(x + (pos * s * (width + space)), y, width, high, fonts.read(int(high*(width/8))), scale=s, color=c)
-
-
-void imlib_draw_string(image_t *img, int x_off, int y_off, mp_obj_t str, int c, float scale, int x_spacing, int y_spacing, bool mono_space) {
-  const uint8_t font_len = fast_ceilf((font_config.width / 8) * font_config.high);
-
-  // mp_buffer_info_t bufinfo;
-  // mp_get_buffer_raise(str, &bufinfo, MP_BUFFER_READ);
-
+void imlib_draw_string(image_t *img, int x_off, int y_off, mp_obj_t str, int c) {
+  const uint8_t font_byte_width = (font_config.width + 7)/8;
+  const uint8_t font_len = font_byte_width * font_config.high;
   const uint8_t *s = mp_obj_str_get_str(str);
-
   uint32_t codepoint;
   uint32_t state = 0;
 
@@ -366,48 +338,9 @@ void imlib_draw_string(image_t *img, int x_off, int y_off, mp_obj_t str, int c, 
             default:
                 break;
         }
-
         const uint8_t *font = buffer;
-
-        if (!mono_space) {
-            // Find the first pixel set and offset to that.
-            bool exit = false;
-
-            for (int x = 0, xx = font_config.width; x < xx; x++) {
-                for (int y = 0, yy = font_config.high; y < yy; y++) {
-                    if (font[y] & (1 << (font_config.width - 1 - x))) {
-                        x_off -= fast_roundf(x * scale);
-                        exit = true;
-                        break;
-                    }
-                }
-
-                if (exit) break;
-            }
-        }
-
-        imlib_draw_font(img, x_off, y_off, c, scale, font_config.high, font_config.width, font);
-
-        if (mono_space) {
-            x_off += fast_roundf(font_config.width * scale) + x_spacing;
-        } else {
-            // Find the last pixel set and offset to that.
-            bool exit = false;
-
-            for (int x = font_config.width - 1; x >= 0; x--) {
-                for (int y = font_config.high - 1; y >= 0; y--) {
-                    if (font[y] & (1 << (font_config.width - 1 - x))) {
-                        x_off += fast_roundf((x + 2) * scale) + x_spacing;
-                        exit = true;
-                        break;
-                    }
-                }
-
-                if (exit) break;
-            }
-
-            if (!exit) x_off += fast_roundf(scale * 3); // space char
-        }
+        imlib_draw_font(img, x_off, y_off, c, font_config.high, font_byte_width * 8, font);
+        x_off += font_config.width;
     }
   }
 }

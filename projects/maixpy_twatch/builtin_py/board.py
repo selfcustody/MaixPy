@@ -13,6 +13,10 @@ config = json.loads("""
         "dir": 96,
         "lcd_type": 0
     },
+    "sensor":{
+        "flipped": false,
+        "lenses": false
+    },
     "board_info": {
         "BOOT_KEY": 16,
         "LED_R": 12,
@@ -37,6 +41,10 @@ config = json.loads("""
         "I2S_DA": 34,
         "I2S_BCK": 35
     },
-    "krux.pins": {}
+    "krux": {
+        "pins":{},
+        "display": {},
+        "sensor": {}
+    }
 }
 """)
