@@ -39,7 +39,7 @@ config = json.loads("""
         },
         "sensor": {
             "flipped": true,
-            "lenses": true
+            "lenses": false
         }
     }
 }
