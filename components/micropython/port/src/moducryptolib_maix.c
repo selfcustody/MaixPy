@@ -126,7 +126,7 @@ STATIC mp_obj_t AES_run(size_t n_args, const mp_obj_t *args, bool encrypt)
     mp_buffer_info_t in_bufinfo;
     mp_get_buffer_raise(in_buf, &in_bufinfo, MP_BUFFER_READ);
 
-    if ((in_bufinfo.len % 16) != 0) {
+    if ((self->mode != UCRYPTOLIB_MODE_GCM) && ((in_bufinfo.len % 16) != 0)) {
         mp_raise_ValueError("input length must be multiple of 16");
     }
 
