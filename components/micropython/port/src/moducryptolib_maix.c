@@ -61,8 +61,6 @@ typedef struct _mp_obj_aes_t {
     uint8_t gcm_tag[4];
 } mp_obj_aes_t;
 
-const mp_obj_module_t mp_module_ucryptolib;
-
 //------------------------------------------------------------------------------------------------------------------
 STATIC mp_obj_t ucryptolib_aes_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args)
 {
@@ -238,6 +236,7 @@ STATIC mp_obj_t ucryptolib_aes_verify_tag(mp_obj_t self_in, mp_obj_t tag_in) {
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(ucryptolib_aes_verify_tag_obj, ucryptolib_aes_verify_tag);
+
 /*
 //----------------------------------------------------
 STATIC mp_obj_t ucryptolib_aes_getIV(mp_obj_t self_in)
