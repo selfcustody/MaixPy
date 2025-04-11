@@ -61,8 +61,6 @@ typedef struct _mp_obj_aes_t {
     uint8_t gcm_tag[4];
 } mp_obj_aes_t;
 
-const mp_obj_module_t mp_module_ucryptolib;
-
 //------------------------------------------------------------------------------------------------------------------
 STATIC mp_obj_t ucryptolib_aes_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args)
 {
@@ -126,7 +124,7 @@ STATIC mp_obj_t AES_run(size_t n_args, const mp_obj_t *args, bool encrypt)
     mp_buffer_info_t in_bufinfo;
     mp_get_buffer_raise(in_buf, &in_bufinfo, MP_BUFFER_READ);
 
-    if ((in_bufinfo.len % 16) != 0) {
+    if ((self->mode != UCRYPTOLIB_MODE_GCM) && ((in_bufinfo.len % 16) != 0)) {
         mp_raise_ValueError("input length must be multiple of 16");
     }
 
@@ -238,6 +236,7 @@ STATIC mp_obj_t ucryptolib_aes_verify_tag(mp_obj_t self_in, mp_obj_t tag_in) {
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(ucryptolib_aes_verify_tag_obj, ucryptolib_aes_verify_tag);
+
 /*
 //----------------------------------------------------
 STATIC mp_obj_t ucryptolib_aes_getIV(mp_obj_t self_in)
