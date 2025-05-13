@@ -272,7 +272,7 @@ struct quirc {
  * QR-code version information database
  */
 
-#define QUIRC_MAX_VERSION   40
+#define QUIRC_MAX_VERSION   20
 #define QUIRC_MAX_ALIGNMENT 7
 
 struct quirc_rs_params {
@@ -835,11 +835,10 @@ static void perspective_unmap(const float *c,
 
 typedef void (*span_func_t)(void *user_data, int y, int left, int right);
 
-typedef struct xylf
-{
+struct xylf_struct {
     int16_t x, y, l, r;
-}
-xylf_t;
+};
+typedef struct xylf_struct xylf_t;
 
 static void lifo_enqueue_fast(lifo_t *ptr, xylf_t *data)
 {
@@ -853,12 +852,12 @@ static void lifo_dequeue_fast(lifo_t *ptr, xylf_t *data)
     *data = *((xylf_t *)(ptr->data + (ptr->len * ptr->data_len)));
 }
 
-static void flood_fill_seed(struct quirc *q, int x, int y, int from, int to,
+static void flood_fill_seed(struct quirc *q, int x, int y,
+                            quirc_pixel_t from_color, quirc_pixel_t to_color,
                             span_func_t func, void *user_data,
                             int depth)
 {
     (void) depth; // unused
-    uint8_t from8 = from, to8 = to;
 
     lifo_t lifo;
     size_t lifo_len;
@@ -870,16 +869,16 @@ static void flood_fill_seed(struct quirc *q, int x, int y, int from, int to,
         quirc_pixel_t *row = q->pixels + y * q->w;
 
         // Expand to the left
-        while (left > 0 && row[left - 1] == from8)
+        while (left > 0 && row[left - 1] == from_color)
             left--;
 
         // Expand to the right
-        while (right < q->w - 1 && row[right + 1] == from8)
+        while (right < q->w - 1 && row[right + 1] == from_color)
             right++;
 
         // Fill the extent
         for (int i = left; i <= right; i++)
-            row[i] = to8;
+            row[i] = to_color;
 
         if (func)
             func(user_data, y, left, right);
@@ -893,7 +892,7 @@ static void flood_fill_seed(struct quirc *q, int x, int y, int from, int to,
                 if (y > 0) {
                     row = q->pixels + (y - 1) * q->w;
                     for (int i = left; i <= right; i++) {
-                        if (row[i] == from8) {
+                        if (row[i] == from_color) {
                             xylf_t context = {x, y, left, right};
                             lifo_enqueue_fast(&lifo, &context);
                             x = i;
@@ -908,7 +907,7 @@ static void flood_fill_seed(struct quirc *q, int x, int y, int from, int to,
                 if (!recurse && y < q->h - 1) {
                     row = q->pixels + (y + 1) * q->w;
                     for (int i = left; i <= right; i++) {
-                        if (row[i] == from8) {
+                        if (row[i] == from_color) {
                             xylf_t context = {x, y, left, right};
                             lifo_enqueue_fast(&lifo, &context);
                             x = i;
@@ -988,10 +987,13 @@ static void threshold(struct quirc *q)
     quirc_pixel_t *row = q->pixels;
 
     // Calculate the frame size to ignore
-    uint16_t frame_x = (uint16_t)(width * IGNORE_PERCENT / 100);
-    uint16_t frame_y = (uint16_t)(height * IGNORE_PERCENT / 100);
+    uint16_t frame_x = width * IGNORE_PERCENT;
+    frame_x /= 100;
+    uint16_t frame_y = height * IGNORE_PERCENT;
+    frame_y /= 100;
 
     // Calculate the effective dimensions to process
+    // A 20% frame on a 320x240 will result in a 192x144 area to measure
     uint16_t start_x = frame_x;
     uint16_t end_x = width - frame_x;
     uint16_t start_y = frame_y;
@@ -1001,24 +1003,34 @@ static void threshold(struct quirc *q)
     uint16_t histogram[256] = {0};
 
     // Calculate histogram for the central part of the image
-    for (uint16_t y = start_y; y < end_y; y++) {
-        for (uint16_t x = start_x; x < end_x; x++) {
-            if (histogram[row[y * width + x]] < HISTOGRAM_MAX) {
+    uint32_t total_hist_pixels = (end_x - start_x) * (end_y - start_y);
+    // If total pixels are < uint16_t, we don't need to worry about overflow
+    if (total_hist_pixels < HISTOGRAM_MAX) {
+        for (uint16_t y = start_y; y < end_y; y++) {
+            for (uint16_t x = start_x; x < end_x; x++) {
                 histogram[row[y * width + x]]++;
             }
         }
     }
+    else {
+        for (uint16_t y = start_y; y < end_y; y++) {
+            for (uint16_t x = start_x; x < end_x; x++) {
+                if (histogram[row[y * width + x]] < HISTOGRAM_MAX) {
+                    histogram[row[y * width + x]]++;
+                }
+            }
+        }
+    }
 
-    uint32_t total = (end_x - start_x) * (end_y - start_y);
-    uint8_t o_threshold = otsu_threshold(histogram, total);
+    uint8_t o_threshold = otsu_threshold(histogram, total_hist_pixels);
 
-    // Apply threshold to binarize the image
-    for (uint16_t y = 0; y < height; y++) {
-        for (uint16_t x = 0; x < width; x++) {
-            if (row[y * width + x] < o_threshold)
-                row[y * width + x] = QUIRC_PIXEL_BLACK;
-            else
-                row[y * width + x] = QUIRC_PIXEL_WHITE;
+    // Apply threshold to binarize the image vector
+    {
+        uint32_t total_pixels = (uint32_t) width * height;
+        for (uint32_t i = 0; i < total_pixels; i++) {
+            row[i] = (row[i] < o_threshold)
+                        ? QUIRC_PIXEL_BLACK
+                        : QUIRC_PIXEL_WHITE;
         }
     }
 }
@@ -1179,9 +1191,9 @@ static void record_capstone(struct quirc *q, int ring, int stone)
 
 static void test_capstone(struct quirc *q, int x, int y, int *pb)
 {
-    uint16_t ring_right_x = x - pb[4];
-    uint16_t ring_left_x = x - pb[4] - pb[3] - pb[2] - pb[1] - pb[0];
-    uint16_t stone_x = x - pb[4] - pb[3] - pb[2];
+    int ring_right_x = x - pb[4];
+    int ring_left_x = x - pb[4] - pb[3] - pb[2] - pb[1] - pb[0];
+    int stone_x = x - pb[4] - pb[3] - pb[2];
     int ring_right = region_code(q, ring_right_x, y);
     int ring_left = region_code(q, ring_left_x, y);
 
@@ -1231,10 +1243,11 @@ static void finder_scan(struct quirc *q, int y)
         color = row[x];
 
         if (color != last_color) {
-            // Shift the pb array
-            for (int i = 0; i < 4; i++) {
-                pb[i] = pb[i + 1];
-            }
+            // Shift the pb array - unrolled loop
+            pb[0] = pb[1];
+            pb[1] = pb[2];
+            pb[2] = pb[3];
+            pb[3] = pb[4];
             pb[4] = run_length;
             run_length = 0;
             run_count++;
@@ -1246,6 +1259,7 @@ static void finder_scan(struct quirc *q, int y)
 
                 // Calculate average and error margin
                 avg = (pb[0] + pb[1] + pb[3] + pb[4]) / 4;
+                if (avg == 0) avg = 1; 
                 err = (avg * 3) / 4;
 
                 for (i = 0; i < 5; i++) {
