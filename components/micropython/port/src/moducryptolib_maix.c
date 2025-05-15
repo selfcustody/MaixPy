@@ -139,7 +139,7 @@ STATIC mp_obj_t ucryptolib_aes_make_new(const mp_obj_type_t *type, size_t n_args
             uint8_t expected_len = (mode == UCRYPTOLIB_MODE_GCM) ? 12 : 
                                    (mode == UCRYPTOLIB_MODE_CBC) ? 16 : 0;
             if (ivinfo.len != expected_len) {
-                mp_raise_ValueError("IV must be %d bytes", expected_len);
+                mp_raise_ValueError("wrong IV length for mode");
             }
             memcpy(o->ctx.iv, ivinfo.buf, ivinfo.len);
         }
