@@ -69,14 +69,16 @@ STATIC mp_obj_t ucryptolib_aes_make_new(const mp_obj_type_t *type, size_t n_args
         ARG_mode,
         ARG_iv,
         ARG_nonce,
-        ARG_initial_value  // Renamed
+        ARG_initial_value,
+        ARG_mac_len,
     };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_key, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
         { MP_QSTR_mode, MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
         { MP_QSTR_iv, MP_ARG_OBJ, {.u_obj = mp_const_none} },
         { MP_QSTR_nonce, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = mp_const_none} },
-        { MP_QSTR_initial_value, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },  // Corrected name
+        { MP_QSTR_initial_value, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_mac_len, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 4} },
     };
 
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
@@ -93,6 +95,16 @@ STATIC mp_obj_t ucryptolib_aes_make_new(const mp_obj_type_t *type, size_t n_args
     uint8_t mode = args[ARG_mode].u_int;
     if (mode <= UCRYPTOLIB_MODE_MIN || mode >= UCRYPTOLIB_MODE_MAX) {
         mp_raise_ValueError("invalid mode");
+    }
+
+    // Validate mac_len for GCM mode
+    if (mode == UCRYPTOLIB_MODE_GCM) {
+        int mac_len = args[ARG_mac_len].u_int;
+        if (mac_len != 4) {
+            mp_raise_ValueError("only mac_len=4 is supported");
+        }
+    } else if (args[ARG_mac_len].u_int != 4) {
+        mp_raise_ValueError("mac_len is only valid for GCM mode");
     }
 
     mp_obj_aes_t *o = m_new_obj(mp_obj_aes_t);
