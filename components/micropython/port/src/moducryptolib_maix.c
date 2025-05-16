@@ -242,15 +242,15 @@ STATIC mp_obj_t AES_run(size_t n_args, const mp_obj_t *args, bool encrypt)
     uint32_t current_counter = initial_counter;
 
     // Process full blocks
+    uint8_t counter_block[16];
+    uint8_t encrypted_counter[16];
     for (size_t i = 0; i < total_blocks; i++) {
-        uint8_t counter_block[16];
         memcpy(counter_block, nonce, 12);
         counter_block[12] = (current_counter >> 24) & 0xFF;
         counter_block[13] = (current_counter >> 16) & 0xFF;
         counter_block[14] = (current_counter >> 8) & 0xFF;
         counter_block[15] = current_counter & 0xFF;
 
-        uint8_t encrypted_counter[16];
         // Always use ECB encryption for CTR mode
         switch (self->key_len) {
             case AES_KEYLEN_256:
@@ -263,10 +263,13 @@ STATIC mp_obj_t AES_run(size_t n_args, const mp_obj_t *args, bool encrypt)
                 aes_ecb128_hard_encrypt(self->ctx.input_key, counter_block, 16, encrypted_counter);
         }
 
-        // XOR with input
-        for (int j = 0; j < 16; j++) {
-            out_buf_ptr[i*16 + j] = ((uint8_t*)in_bufinfo.buf)[i*16 + j] ^ encrypted_counter[j];
-        }
+        // Optimized XOR with input using 64-bit words
+        uint64_t *in64 = (uint64_t*)&((uint8_t*)in_bufinfo.buf)[i*16];
+        uint64_t *enc64 = (uint64_t*)encrypted_counter;
+        uint64_t *out64 = (uint64_t*)&out_buf_ptr[i*16];
+        out64[0] = in64[0] ^ enc64[0];
+        out64[1] = in64[1] ^ enc64[1];
+
         current_counter++;
     }
 
