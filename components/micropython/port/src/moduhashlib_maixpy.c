@@ -191,12 +191,13 @@ STATIC mp_obj_t mod_uhashlib_pbkdf2_hmac_sha256(size_t n_args, const mp_obj_t *p
             sha256_update(&outer_ctx, inner_hash_j, 32); // Varying data
             sha256_final(&outer_ctx, u_current);
 
-            // XOR accum with u_current (32-bit optimized)
-            uint32_t *accum32 = (uint32_t*)accum;
-            uint32_t *u32 = (uint32_t*)u_current;
-            for (int k = 0; k < 8; k++) {
-                accum32[k] ^= u32[k];
-            }
+            // XOR accum with u_current (64-bit optimized)
+            uint64_t *accum64 = (uint64_t*)accum;
+            uint64_t *u64 = (uint64_t*)u_current;
+            accum64[0] ^= u64[0];
+            accum64[1] ^= u64[1];
+            accum64[2] ^= u64[2];
+            accum64[3] ^= u64[3];
         }
 
         // Copy accum to derived key
