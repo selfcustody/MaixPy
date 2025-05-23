@@ -985,8 +985,9 @@ STATIC mp_obj_t py_lcd_draw_qr_code_binary(size_t n_args, const mp_obj_t *args) 
     if (lcd_para.width == 0 || lcd_para.width == 0)
         mp_raise_msg(&mp_type_ValueError, "not init");
 
-    uint16_t y0 = mp_obj_get_int(args[0]);
-    mp_obj_t binary_qr_obj = args[1];
+    uint16_t x0 = mp_obj_get_int(args[0]);
+    uint16_t y0 = mp_obj_get_int(args[1]);
+    mp_obj_t binary_qr_obj = args[2];
     mp_buffer_info_t qr_bufinfo;
     mp_get_buffer_raise(binary_qr_obj, &qr_bufinfo, MP_BUFFER_READ);
     uint8_t* qr_data = qr_bufinfo.buf;
@@ -994,39 +995,39 @@ STATIC mp_obj_t py_lcd_draw_qr_code_binary(size_t n_args, const mp_obj_t *args) 
     if (qr_bufinfo.len == 0)
         return mp_const_none;
 
-    uint16_t max_width = mp_obj_get_int(args[2]);
+    uint16_t max_width = mp_obj_get_int(args[3]);
 
     uint16_t dark_color = BLACK;
     uint16_t light_color = WHITE;
     uint16_t bg_color = BLACK;
 
-    if (n_args >= 4) {
+    if (n_args >= 5) {
         mp_obj_t *arg_color;
 
-        if (mp_obj_is_integer(args[3])) {
-            dark_color = mp_obj_get_int(args[3]);
+        if (mp_obj_is_integer(args[4])) {
+            dark_color = mp_obj_get_int(args[4]);
         } else {
-            mp_obj_get_array_fixed_n(args[3], 3, &arg_color);
+            mp_obj_get_array_fixed_n(args[4], 3, &arg_color);
             dark_color = COLOR_R8_G8_B8_TO_RGB565(IM_MAX(IM_MIN(mp_obj_get_int(arg_color[0]), COLOR_R8_MAX), COLOR_R8_MIN),
                                                 IM_MAX(IM_MIN(mp_obj_get_int(arg_color[1]), COLOR_G8_MAX), COLOR_G8_MIN),
                                                 IM_MAX(IM_MIN(mp_obj_get_int(arg_color[2]), COLOR_B8_MAX), COLOR_B8_MIN));
         }
 
-        if (n_args >= 5) {
-            if (mp_obj_is_integer(args[4])) {
-                light_color = mp_obj_get_int(args[4]);
+        if (n_args >= 6) {
+            if (mp_obj_is_integer(args[5])) {
+                light_color = mp_obj_get_int(args[5]);
             } else {
-                mp_obj_get_array_fixed_n(args[4], 3, &arg_color);
+                mp_obj_get_array_fixed_n(args[5], 3, &arg_color);
                 light_color = COLOR_R8_G8_B8_TO_RGB565(IM_MAX(IM_MIN(mp_obj_get_int(arg_color[0]), COLOR_R8_MAX), COLOR_R8_MIN),
                                                     IM_MAX(IM_MIN(mp_obj_get_int(arg_color[1]), COLOR_G8_MAX), COLOR_G8_MIN),
                                                     IM_MAX(IM_MIN(mp_obj_get_int(arg_color[2]), COLOR_B8_MAX), COLOR_B8_MIN));
             }
 
-            if (n_args >= 6) {
-                if (mp_obj_is_integer(args[5])) {
-                    bg_color = mp_obj_get_int(args[5]);
+            if (n_args >= 7) {
+                if (mp_obj_is_integer(args[6])) {
+                    bg_color = mp_obj_get_int(args[6]);
                 } else {
-                    mp_obj_get_array_fixed_n(args[5], 3, &arg_color);
+                    mp_obj_get_array_fixed_n(args[6], 3, &arg_color);
                     bg_color = COLOR_R8_G8_B8_TO_RGB565(IM_MAX(IM_MIN(mp_obj_get_int(arg_color[0]), COLOR_R8_MAX), COLOR_R8_MIN),
                                                         IM_MAX(IM_MIN(mp_obj_get_int(arg_color[1]), COLOR_G8_MAX), COLOR_G8_MIN),
                                                         IM_MAX(IM_MIN(mp_obj_get_int(arg_color[2]), COLOR_B8_MAX), COLOR_B8_MIN));
@@ -1098,7 +1099,7 @@ STATIC mp_obj_t py_lcd_draw_qr_code_binary(size_t n_args, const mp_obj_t *args) 
         }
     }
 
-    lcd->draw_picture(0, y0, max_width, max_width, (uint8_t *)pixels);
+    lcd->draw_picture(x0, y0, max_width, max_width, (uint8_t *)pixels);
     free(pixels);
     return mp_const_none;
 }
@@ -1138,7 +1139,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_lcd_draw_line_obj, 3, 5, py_lcd_dr
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_lcd_draw_outline_obj, 3, 5, mcu_lcd_draw_outline);
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_lcd_draw_circle_obj, 4, 5, mcu_lcd_draw_circle);
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_lcd_draw_qr_code_obj, 3, 6, py_lcd_draw_qr_code);
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_lcd_draw_qr_code_binary_obj, 3, 6, py_lcd_draw_qr_code_binary);
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_lcd_draw_qr_code_binary_obj, 4, 7, py_lcd_draw_qr_code_binary);
 
 
 static const mp_map_elem_t globals_dict_table[] = {
