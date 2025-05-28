@@ -2,6 +2,10 @@
 #include "py/builtin.h"
 #include "py/obj.h"
 #include "py/objstr.h"
+#include <string.h>
+#include "py/mperrno.h"
+
+#define BASE32_MASK 0x1F
 
 static const char B32CHARS[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 static int8_t base32_index[256];
@@ -31,9 +35,17 @@ STATIC mp_obj_t base32_decode(mp_obj_t encoded_str_obj) {
     }
 
     size_t max_decoded_size = (stripped_len * 5 + 7) / 8;
-    uint8_t *decoded_buf = m_new(uint8_t, max_decoded_size);
-    size_t decoded_len = 0;
+    uint8_t *decoded_buf = NULL;
+    
+    MP_THREAD_GIL_EXIT();
+    decoded_buf = m_new0(uint8_t, max_decoded_size);
+    MP_THREAD_GIL_ENTER();
+    
+    if (decoded_buf == NULL) {
+        mp_raise_OSError(MP_ENOMEM);
+    }
 
+    size_t decoded_len = 0;
     uint32_t buffer = 0;
     int bits_left = 0;
 
@@ -41,7 +53,10 @@ STATIC mp_obj_t base32_decode(mp_obj_t encoded_str_obj) {
         unsigned char c = encoded_str[i];
         int8_t index = base32_index[c];
         if (index == -1) {
+            // Clean up allocated memory before raising exception
+            MP_THREAD_GIL_EXIT();
             m_del(uint8_t, decoded_buf, max_decoded_size);
+            MP_THREAD_GIL_ENTER();
             mp_raise_ValueError("Invalid Base32 character");
         }
 
@@ -56,7 +71,12 @@ STATIC mp_obj_t base32_decode(mp_obj_t encoded_str_obj) {
     }
 
     mp_obj_t result = mp_obj_new_bytes(decoded_buf, decoded_len);
+    
+    // Clean up allocated memory
+    MP_THREAD_GIL_EXIT();
     m_del(uint8_t, decoded_buf, max_decoded_size);
+    MP_THREAD_GIL_ENTER();
+    
     return result;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(base32_decode_obj, base32_decode);
@@ -72,11 +92,26 @@ STATIC mp_obj_t base32_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
     uint32_t buffer = 0;
     int bits_left = 0;
 
-    size_t max_encoded_size = (data_len * 8 + 4) / 5;
+    size_t base_encoded_size = (data_len * 8 + 4) / 5;
+    size_t max_encoded_size;
+    
     if (add_padding) {
-        max_encoded_size += (8 - (max_encoded_size % 8)) % 8;
+        // Round up to nearest multiple of 8 for padding
+        max_encoded_size = ((base_encoded_size + 7) / 8) * 8;
+    } else {
+        max_encoded_size = base_encoded_size;
     }
-    char *encoded_buf = m_new(char, max_encoded_size + 1);
+    
+    char *encoded_buf = NULL;
+    
+    MP_THREAD_GIL_EXIT();
+    encoded_buf = m_new0(char, max_encoded_size + 1);
+    MP_THREAD_GIL_ENTER();
+    
+    if (encoded_buf == NULL) {
+        mp_raise_OSError(MP_ENOMEM);
+    }
+
     size_t encoded_len = 0;
 
     for (size_t i = 0; i < data_len; i++) {
@@ -85,7 +120,7 @@ STATIC mp_obj_t base32_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
 
         while (bits_left >= 5) {
             bits_left -= 5;
-            uint8_t index = (buffer >> bits_left) & 0x1F;
+            uint8_t index = (buffer >> bits_left) & BASE32_MASK;
             encoded_buf[encoded_len++] = B32CHARS[index];
             buffer &= (1 << bits_left) - 1;
         }
@@ -93,7 +128,7 @@ STATIC mp_obj_t base32_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
 
     if (bits_left > 0) {
         buffer <<= (5 - bits_left);
-        encoded_buf[encoded_len++] = B32CHARS[buffer & 0x1F];
+        encoded_buf[encoded_len++] = B32CHARS[buffer & BASE32_MASK];
     }
 
     if (add_padding) {
@@ -104,7 +139,12 @@ STATIC mp_obj_t base32_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
     }
 
     mp_obj_t result = mp_obj_new_str(encoded_buf, encoded_len);
+    
+    // Clean up allocated memory
+    MP_THREAD_GIL_EXIT();
     m_del(char, encoded_buf, max_encoded_size + 1);
+    MP_THREAD_GIL_ENTER();
+    
     return result;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(base32_encode_obj, base32_encode);
