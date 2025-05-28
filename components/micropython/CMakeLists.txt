@@ -457,6 +457,16 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
         list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/shannon")
         append_srcs_dir(ADD_SRCS "port/src/shannon")
     endif()
+    # base32 encoding/decoding
+    if(CONFIG_MAIXPY_BASE32_ENABLE)
+        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/base32")
+        append_srcs_dir(ADD_SRCS "port/src/base32")
+    endif()
+    # base43 encoding/decoding
+    if(CONFIG_MAIXPY_BASE43_ENABLE)
+        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/base43")
+        append_srcs_dir(ADD_SRCS "port/src/base43")
+    endif()
     #############################################
 
     ################## FLAGS ####################

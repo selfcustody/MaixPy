@@ -1,0 +1,4 @@
+BASE32_MOD_DIR := $(USERMOD_DIR)
+
+# Add all C files to SRC_USERMOD.
+SRC_USERMOD += $(BASE32_MOD_DIR)/base32.c
