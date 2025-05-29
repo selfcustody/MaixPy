@@ -43,16 +43,20 @@ static void bigint_free(BigInt *num) {
 
 static void bigint_multiply_add(BigInt *num, uint8_t multiplier, uint8_t addend) {
     uint32_t carry = addend;
-    for (size_t i = num->length; i > 0; i--) {
+    uint8_t *digits = num->digits;
+    size_t len = num->length;
+    
+    for (size_t i = len; i > 0; i--) {
         size_t idx = i - 1;
-        uint32_t product = (uint32_t)num->digits[idx] * multiplier + carry;
-        num->digits[idx] = product & 0xFF;
-        carry = product >> 8;
+        carry += (uint32_t)digits[idx] * multiplier;
+        digits[idx] = carry & 0xFF;
+        carry >>= 8;
     }
+    
     if (carry) {
-        num->digits = m_renew(uint8_t, num->digits, num->length, num->length + 1);
-        memmove(num->digits + 1, num->digits, num->length);
-        num->digits[0] = carry & 0xFF;
+        num->digits = m_renew(uint8_t, num->digits, len, len + 1);
+        memmove(num->digits + 1, num->digits, len);
+        num->digits[0] = carry;
         num->length++;
     }
 }
@@ -66,7 +70,33 @@ static bool bigint_is_zero(const BigInt *num) {
     return true;
 }
 
-// Base43 Encoding (corrected buffer sizing)
+static uint8_t bigint_divide_by_43(BigInt *num) {
+    uint32_t remainder = 0;
+    uint8_t *digits = num->digits;
+    size_t len = num->length;
+    
+    // Divide in-place from most significant to least significant
+    for (size_t i = 0; i < len; i++) {
+        uint32_t temp = (remainder << 8) | digits[i];
+        digits[i] = temp / 43;
+        remainder = temp % 43;
+    }
+    
+    // Remove leading zeros
+    size_t leading_zeros = 0;
+    while (leading_zeros < len - 1 && digits[leading_zeros] == 0) {
+        leading_zeros++;
+    }
+    
+    if (leading_zeros > 0) {
+        num->length = len - leading_zeros;
+        memmove(digits, digits + leading_zeros, num->length);
+    }
+    
+    return (uint8_t)remainder;
+}
+
+// Base43 Encoding
 STATIC mp_obj_t base43_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
     mp_buffer_info_t data_buf;
     mp_get_buffer_raise(data_obj, &data_buf, MP_BUFFER_READ);
@@ -79,15 +109,15 @@ STATIC mp_obj_t base43_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
         return mp_obj_new_str("", 0);
     }
 
-    // Calculate maximum digits: ceil(data_len * 8 / log2(43))
-    // Using safe bound: 2 * data_len + 1 (since 1.475 < 2)
-    size_t max_out_len = 2 * data_len + 1;
+    // Ideal calculation for data size: ceil(data_len * 8 * log(2) / log(43))
+    // log(2)/log(43) ≈ 0.1845, so data_len * 8 * 0.185 ≈ data_len * 1.48
+    size_t max_out_len = data_len + (data_len >> 1) + 2; // data_len * 1.5 + 2
     if (add_padding) {
         max_out_len = ((max_out_len + 3) / 4) * 4;  // Round to next multiple of 4
     }
 
     // Allocate output buffer
-    char *output_buf = m_new(char, max_out_len + 1);  // +1 for safety
+    char *output_buf = m_new(char, max_out_len);
     size_t out_len = 0;
 
     // Special case for all zeros
@@ -107,36 +137,13 @@ STATIC mp_obj_t base43_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
         while (!bigint_is_zero(&num)) {
             if (out_len >= max_out_len) {
                 bigint_free(&num);
-                m_del(char, output_buf, max_out_len + 1);
+                m_del(char, output_buf, max_out_len);
                 mp_raise_ValueError("Output buffer overflow");
             }
             
-            uint8_t rem;
-            // Temporary quotient storage
-            uint8_t *quotient = m_new(uint8_t, num.length);
-            uint64_t tmp = 0;
-            size_t q_len = 0;
-            
-            for (size_t i = 0; i < num.length; i++) {
-                tmp = (tmp << 8) | num.digits[i];
-                if (tmp >= 43 || q_len > 0) {
-                    quotient[q_len++] = tmp / 43;
-                    tmp %= 43;
-                }
-            }
-            
-            if (q_len == 0) {
-                quotient[0] = 0;
-                q_len = 1;
-            }
-            
-            rem = tmp;
-            output_buf[out_len++] = B43CHARS[rem];
-            
-            // Update num with quotient
-            m_del(uint8_t, num.digits, num.length);
-            num.digits = quotient;
-            num.length = q_len;
+            uint8_t rem = bigint_divide_by_43(&num);
+            output_buf[out_len] = B43CHARS[rem];
+            out_len++;
         }
         bigint_free(&num);
         
@@ -152,7 +159,7 @@ STATIC mp_obj_t base43_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
     if (add_padding) {
         size_t target_len = ((out_len + 3) / 4) * 4;
         if (target_len > max_out_len) {
-            m_del(char, output_buf, max_out_len + 1);
+            m_del(char, output_buf, max_out_len);
             mp_raise_ValueError("Padding overflow");
         }
         for (size_t i = out_len; i < target_len; i++) {
@@ -162,7 +169,7 @@ STATIC mp_obj_t base43_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
     }
 
     mp_obj_t result = mp_obj_new_str(output_buf, out_len);
-    m_del(char, output_buf, max_out_len + 1);
+    m_del(char, output_buf, max_out_len);
     return result;
 }
 
