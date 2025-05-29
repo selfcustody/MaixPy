@@ -111,13 +111,22 @@ STATIC mp_obj_t mod_uhashlib_pbkdf2_hmac_sha256(size_t n_args, const mp_obj_t *p
     if (dklen < 1) {
         mp_raise_ValueError("dklen must be >= 1");
     }
-
+    if (iterations > 2000000) {
+        mp_raise_ValueError("iterations too large (max 2000000)");
+    }
+    if (dklen > 1024) {
+        mp_raise_ValueError("dklen too large (max 1024)");
+    }
+    if (salt_buf.len > 1024) {
+        mp_raise_ValueError("salt too large (max 1024 bytes)");
+    }
+    
     // Process the password into the key (64 bytes)
     uint8_t key[64];
     if (password_buf.len > 64) {
         // Hash the password using incremental functions for hardware acceleration
         sha256_context_t key_ctx;
-        sha256_init(&key_ctx, 64);
+        sha256_init(&key_ctx, password_buf.len);
         sha256_update(&key_ctx, password_buf.buf, password_buf.len);
         uint8_t hashed_key[32];
         sha256_final(&key_ctx, hashed_key);
@@ -142,8 +151,7 @@ STATIC mp_obj_t mod_uhashlib_pbkdf2_hmac_sha256(size_t n_args, const mp_obj_t *p
     uint8_t *dk = (uint8_t *)dk_vstr.buf;
 
     for (int i = 1; i <= l; i++) {
-        // Create initial message: salt || i (BE)
-        uint8_t initial_message[salt_buf.len + 4];
+        uint8_t *initial_message = m_new(uint8_t, salt_buf.len + 4);
         memcpy(initial_message, salt_buf.buf, salt_buf.len);
         initial_message[salt_buf.len] = (i >> 24) & 0xFF;
         initial_message[salt_buf.len + 1] = (i >> 16) & 0xFF;
@@ -155,18 +163,17 @@ STATIC mp_obj_t mod_uhashlib_pbkdf2_hmac_sha256(size_t n_args, const mp_obj_t *p
         {
             // Inner hash
             sha256_context_t inner_ctx, outer_ctx;
-            sha256_quick_init(&inner_ctx, 64);
-            size_t total_len = 64;
+            size_t inner_total_len = 64 + salt_buf.len + 4;
+            sha256_quick_init(&inner_ctx, inner_total_len);
             sha256_update(&inner_ctx, inner_pad, 64);
-            total_len += salt_buf.len + 4;
             sha256_update(&inner_ctx, initial_message, salt_buf.len + 4);
             uint8_t inner_hash[32];
             sha256_final(&inner_ctx, inner_hash);
 
             // Outer hash
-            sha256_quick_init(&outer_ctx, 64);
-            sha256_update(&outer_ctx, outer_pad, 64); // Fixed pad
-            sha256_update(&outer_ctx, inner_hash, 32); // Varying data
+            sha256_quick_init(&outer_ctx, 64 + 32);
+            sha256_update(&outer_ctx, outer_pad, 64);
+            sha256_update(&outer_ctx, inner_hash, 32);
             sha256_final(&outer_ctx, u_current);
         }
 
@@ -179,16 +186,16 @@ STATIC mp_obj_t mod_uhashlib_pbkdf2_hmac_sha256(size_t n_args, const mp_obj_t *p
             // Compute U_j = HMAC(u_prev)
 
             sha256_context_t inner_ctx;
-            sha256_quick_init(&inner_ctx, 64);
-            sha256_update(&inner_ctx, inner_pad, 64); // Fixed pad
-            sha256_update(&inner_ctx, u_current, 32); // Varying data
+            sha256_quick_init(&inner_ctx, 64 + 32);
+            sha256_update(&inner_ctx, inner_pad, 64);
+            sha256_update(&inner_ctx, u_current, 32);
             uint8_t inner_hash_j[32];
             sha256_final(&inner_ctx, inner_hash_j);
 
             sha256_context_t outer_ctx;
-            sha256_quick_init(&outer_ctx, 64);
-            sha256_update(&outer_ctx, outer_pad, 64); // Fixed pad
-            sha256_update(&outer_ctx, inner_hash_j, 32); // Varying data
+            sha256_quick_init(&outer_ctx, 64 + 32);
+            sha256_update(&outer_ctx, outer_pad, 64);
+            sha256_update(&outer_ctx, inner_hash_j, 32);
             sha256_final(&outer_ctx, u_current);
 
             // XOR accum with u_current (64-bit optimized)
@@ -204,6 +211,7 @@ STATIC mp_obj_t mod_uhashlib_pbkdf2_hmac_sha256(size_t n_args, const mp_obj_t *p
         int offset = (i - 1) * 32;
         int copy_len = (i == l) ? dklen - offset : 32;
         memcpy(dk + offset, accum, copy_len);
+        m_del(uint8_t, initial_message, salt_buf.len + 4);
     }
     // uint64_t end_us = sysctl_get_time_us();
     // mp_printf(&mp_plat_print, "PBKDF2 took %lu us\n", (unsigned long)(end_us - start_us));
