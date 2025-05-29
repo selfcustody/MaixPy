@@ -66,19 +66,20 @@ static BigInt bigint_divmod(BigInt *num, uint8_t divisor, uint8_t *remainder) {
 
 
 static void bigint_multiply_add(BigInt *num, uint8_t multiplier, uint8_t addend) {
-    uint16_t carry = addend;
-    
-    for (size_t i = 0; i < num->length; i++) {
-        uint16_t product = (uint16_t)num->digits[i] * multiplier + carry;
-        num->digits[i] = product & 0xFF;
+    uint32_t carry = addend;
+    // process big-endian: from least significant byte (end) toward most (start)
+    for (size_t i = num->length; i > 0; i--) {
+        size_t idx = i - 1;
+        uint32_t product = (uint32_t)num->digits[idx] * multiplier + carry;
+        num->digits[idx] = product & 0xFF;
         carry = product >> 8;
     }
-    
-    while (carry > 0) {
+    if (carry) {
+        // grow at the front for the new most-significant byte
         num->digits = m_renew(uint8_t, num->digits, num->length, num->length + 1);
-        num->digits[num->length] = carry & 0xFF;
+        memmove(num->digits + 1, num->digits, num->length);
+        num->digits[0] = carry & 0xFF;
         num->length++;
-        carry >>= 8;
     }
 }
 
@@ -101,6 +102,7 @@ STATIC mp_obj_t base43_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
     // Handle zero case first
     if (bigint_is_zero(&num)) {
         encoded[encoded_len++] = B43CHARS[0];
+        bigint_free(&num);
     } else {
         // Process until number becomes zero
         while (!bigint_is_zero(&num)) {
@@ -164,19 +166,14 @@ STATIC mp_obj_t base43_decode(mp_obj_t encoded_str_obj) {
         bigint_multiply_add(&num, 43, val);
     }
 
-    // Remove leading zeros and reverse for correct byte order
-    while (num.length > 1 && num.digits[num.length - 1] == 0) {
-        num.length--;
-    }
-    
-    // Reverse bytes to match encoding byte order
-    for (size_t i = 0; i < num.length / 2; i++) {
-        uint8_t tmp = num.digits[i];
-        num.digits[i] = num.digits[num.length - 1 - i];
-        num.digits[num.length - 1 - i] = tmp;
+    // Strip leading zero bytes (front of big-endian digits)
+    size_t start = 0;
+    while (start + 1 < num.length && num.digits[start] == 0) {
+        start++;
     }
 
-    mp_obj_t result = mp_obj_new_bytes(num.digits, num.length);
+    // return directly—no reverse needed
+    mp_obj_t result = mp_obj_new_bytes(num.digits + start, num.length - start);
     bigint_free(&num);
     return result;
 }
