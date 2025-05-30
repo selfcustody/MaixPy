@@ -35,11 +35,7 @@ STATIC mp_obj_t base32_decode(mp_obj_t encoded_str_obj) {
     }
 
     size_t max_decoded_size = (stripped_len * 5 + 7) / 8;
-    uint8_t *decoded_buf = NULL;
-    
-    MP_THREAD_GIL_EXIT();
-    decoded_buf = m_new0(uint8_t, max_decoded_size);
-    MP_THREAD_GIL_ENTER();
+    uint8_t *decoded_buf = m_new0(uint8_t, max_decoded_size);
     
     if (decoded_buf == NULL) {
         mp_raise_OSError(MP_ENOMEM);
@@ -54,9 +50,7 @@ STATIC mp_obj_t base32_decode(mp_obj_t encoded_str_obj) {
         int8_t index = base32_index[c];
         if (index == -1) {
             // Clean up allocated memory before raising exception
-            MP_THREAD_GIL_EXIT();
             m_del(uint8_t, decoded_buf, max_decoded_size);
-            MP_THREAD_GIL_ENTER();
             mp_raise_ValueError("Invalid Base32 character");
         }
 
@@ -73,9 +67,7 @@ STATIC mp_obj_t base32_decode(mp_obj_t encoded_str_obj) {
     mp_obj_t result = mp_obj_new_bytes(decoded_buf, decoded_len);
     
     // Clean up allocated memory
-    MP_THREAD_GIL_EXIT();
     m_del(uint8_t, decoded_buf, max_decoded_size);
-    MP_THREAD_GIL_ENTER();
     
     return result;
 }
@@ -102,11 +94,7 @@ STATIC mp_obj_t base32_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
         max_encoded_size = base_encoded_size;
     }
     
-    char *encoded_buf = NULL;
-    
-    MP_THREAD_GIL_EXIT();
-    encoded_buf = m_new0(char, max_encoded_size + 1);
-    MP_THREAD_GIL_ENTER();
+    char *encoded_buf = m_new0(char, max_encoded_size + 1);
     
     if (encoded_buf == NULL) {
         mp_raise_OSError(MP_ENOMEM);
@@ -141,9 +129,7 @@ STATIC mp_obj_t base32_encode(mp_obj_t data_obj, mp_obj_t add_padding_obj) {
     mp_obj_t result = mp_obj_new_str(encoded_buf, encoded_len);
     
     // Clean up allocated memory
-    MP_THREAD_GIL_EXIT();
     m_del(char, encoded_buf, max_encoded_size + 1);
-    MP_THREAD_GIL_ENTER();
     
     return result;
 }
