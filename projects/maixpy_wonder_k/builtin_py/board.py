@@ -48,11 +48,13 @@ config = json.loads("""
     },
     "krux": {
         "pins": {
+            "BUTTON_A": 25,
             "BUTTON_B": 31,
             "TOUCH_IRQ": 26,
             "TOUCH_RESET": 29,
             "I2C_SDA": 27,
-            "I2C_SCL": 24
+            "I2C_SCL": 24,
+            "BACKLIGHT": 22
         },
         "display": {
             "touch": true,
