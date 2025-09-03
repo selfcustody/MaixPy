@@ -792,7 +792,6 @@ static mp_obj_t py_image_to_bitmap(size_t n_args, const mp_obj_t *args, mp_map_t
     out.h = arg_img->h;
     out.bpp = IMAGE_BPP_BINARY;
     out.data = copy ? xalloc(image_size(&out)) : arg_img->data;
-    out.pix_ai = copy ? xalloc(out.w*out.h*3) : arg_img->pix_ai;
 
     switch(arg_img->bpp) {
         case IMAGE_BPP_BINARY: {
@@ -858,7 +857,6 @@ static mp_obj_t py_image_to_grayscale(size_t n_args, const mp_obj_t *args, mp_ma
     out.h = arg_img->h;
     out.bpp = IMAGE_BPP_GRAYSCALE;
     out.data = copy ? xalloc(image_size(&out)) : arg_img->data;
-    out.pix_ai = copy ? xalloc(out.w*out.h*3) : arg_img->pix_ai;
 
     switch(arg_img->bpp) {
         case IMAGE_BPP_BINARY: {
@@ -917,7 +915,6 @@ static mp_obj_t py_image_to_rgb565(size_t n_args, const mp_obj_t *args, mp_map_t
     out.h = arg_img->h;
     out.bpp = IMAGE_BPP_RGB565;
     out.data = copy ? xalloc(image_size(&out)) : arg_img->data;
-    out.pix_ai = copy ? xalloc(out.w*out.h*3) : arg_img->pix_ai;
 
     switch(arg_img->bpp) {
         case IMAGE_BPP_BINARY: {
@@ -975,7 +972,6 @@ static mp_obj_t py_image_to_rainbow(size_t n_args, const mp_obj_t *args, mp_map_
     out.h = arg_img->h;
     out.bpp = IMAGE_BPP_RGB565;
     out.data = copy ? xalloc(image_size(&out)) : arg_img->data;
-    out.pix_ai = copy ? xalloc(out.w*out.h*3) : arg_img->pix_ai;
 
     switch(arg_img->bpp) {
         case IMAGE_BPP_BINARY: {
@@ -1782,7 +1778,6 @@ STATIC mp_obj_t py_image_binary(size_t n_args, const mp_obj_t *args, mp_map_t *k
     out.h = arg_img->h;
     out.bpp = arg_to_bitmap ? IMAGE_BPP_BINARY : arg_img->bpp;
     out.data = arg_copy ? xalloc(image_size(&out)) : arg_img->data;
-    out.pix_ai = arg_copy ? xalloc(out.w*out.h*3) : arg_img->pix_ai;
 
     fb_alloc_mark();
     imlib_binary(&out, arg_img, &arg_thresholds, arg_invert, arg_zero, arg_msk);
@@ -5585,36 +5580,7 @@ static mp_obj_t py_image_dump_roi(size_t n_args, const mp_obj_t *args, mp_map_t 
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_dump_roi_obj, 2, py_image_dump_roi);
 
-static mp_obj_t py_image_conv3(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
-{
-	image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
-    mp_map_elem_t *kw_arg = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_kern), MP_MAP_LOOKUP);
-	float krn[9];
-	int i;
-	
-    if (kw_arg) {
-        mp_obj_t *arg_conv3;
-        mp_obj_get_array_fixed_n(kw_arg->value, 9, &arg_conv3);
-		for(i=0; i<9; i++)
-		{
-			krn[i] = mp_obj_get_float(arg_conv3[i]);
-		}
-    } else if (n_args > 1) {
-        mp_obj_t *arg_conv3;
-        mp_obj_get_array_fixed_n(args[1], 9, &arg_conv3);
-		for(i=0; i<9; i++)
-		{
-			krn[i] = mp_obj_get_float(arg_conv3[i]);
-		}
-	} else 
-	{
-		mp_printf(&mp_plat_print, "please input 9 kern parm!\n");
-		return mp_const_none;
-	}
-	imlib_conv3(arg_img, krn);
-	return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_conv3_obj, 2, py_image_conv3);
+
 
 static mp_obj_t py_image_resize(mp_obj_t img_obj, mp_obj_t w_obj, mp_obj_t h_obj)
 {
@@ -5774,92 +5740,6 @@ static mp_obj_t py_image_resize(mp_obj_t img_obj, mp_obj_t w_obj, mp_obj_t h_obj
 	}
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(py_image_resize_obj, py_image_resize);
-
-static mp_obj_t py_image_pix_to_ai(mp_obj_t img_obj)
-{
-	image_t* img = (image_t *) py_image_cobj(img_obj);
-	uint16_t w = img->w;
-	uint16_t h = img->h;
-	switch (img->bpp)
-	{
-	case IMAGE_BPP_GRAYSCALE:
-	{
-		uint8_t* out = img->pix_ai;
-		if(out == NULL) {
-			out = xalloc(w*h);	//TODO: check 128bit align
-			img->pix_ai = out;	
-		}
-		uint8_t* in = img->pixels;
-		memcpy(out, in, w*h);
-		return mp_const_none;		
-		break;
-	}
-	case IMAGE_BPP_RGB565: 
-	{	
-		uint8_t* out = img->pix_ai;
-		if(out == NULL) {
-			out = xalloc( ( (w+63)&(~0x3F) ) * h*3); // 64B align for conv function	//TODO: check 128bit align
-			img->pix_ai = out;	
-		}
-		uint8_t* r = out;
-		uint8_t* g = out+w*h;
-		uint8_t* b = out+w*h*2;
-		uint16_t* in = (uint16_t*)img->pixels;
-		uint32_t index;
-
-		for(index=0; index < w*h; index++)
-		{
-			r[index] = COLOR_RGB565_TO_R8(in[index]);
-			g[index] = COLOR_RGB565_TO_G8(in[index]);
-			b[index] = COLOR_RGB565_TO_B8(in[index]);
-		}
-		return mp_const_none;
-	}
-	default:
-		mp_printf(&mp_plat_print, "only support grayscale now\r\n");
-		return mp_const_none;
-		break;
-	}
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_pix_to_ai_obj, py_image_pix_to_ai);
-
-
-static mp_obj_t py_image_ai_to_pix(mp_obj_t img_obj)
-{
-	image_t* img = (image_t *) py_image_cobj(img_obj);
-	uint16_t w = img->w;
-	uint16_t h = img->h;
-	
-	if(img->pix_ai == NULL) return mp_const_none;
-	switch (img->bpp)
-	{
-	case IMAGE_BPP_GRAYSCALE:
-	{
-		memcpy(img->pixels, img->pix_ai, w*h);
-		return mp_const_none;
-		break;
-	}
-	case IMAGE_BPP_RGB565: 
-	{
-		uint8_t* out = img->pix_ai; //TODO: check 128bit align
-		uint8_t* r = out;
-		uint8_t* g = out+w*h;
-		uint8_t* b = out+w*h*2;
-		uint16_t* in = img->pixels;
-		uint32_t index;
-		for(index=0; index < w*h; index++)
-		{
-			in[index] = COLOR_R8_G8_B8_TO_RGB565(r[index],g[index],b[index]);
-		}
-		return mp_const_none;
-	}
-	default:
-		mp_printf(&mp_plat_print, "only support grayscale now\r\n");
-		return mp_const_none;
-	}
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_image_ai_to_pix_obj, py_image_ai_to_pix);
-
 
 
 static mp_obj_t py_image_strech_char(mp_obj_t img_obj, mp_obj_t de_dark_obj)
@@ -6389,10 +6269,7 @@ static const mp_rom_map_elem_t locals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR_selective_search),    MP_ROM_PTR(&py_image_selective_search_obj)},
 #endif
 	{MP_ROM_QSTR(MP_QSTR_dump_roi),    MP_ROM_PTR(&py_image_dump_roi_obj)},
-	{MP_ROM_QSTR(MP_QSTR_conv3),    MP_ROM_PTR(&py_image_conv3_obj)},
 	{MP_ROM_QSTR(MP_QSTR_resize),    MP_ROM_PTR(&py_image_resize_obj)},
-	{MP_ROM_QSTR(MP_QSTR_ai_to_pix),    MP_ROM_PTR(&py_image_ai_to_pix_obj)},
-	{MP_ROM_QSTR(MP_QSTR_pix_to_ai),    MP_ROM_PTR(&py_image_pix_to_ai_obj)},
 	{MP_ROM_QSTR(MP_QSTR_strech_char),    MP_ROM_PTR(&py_image_strech_char_obj)},
 	{MP_ROM_QSTR(MP_QSTR_stretch),    MP_ROM_PTR(&py_image_stretch_obj)},
 	{MP_ROM_QSTR(MP_QSTR_cut),    MP_ROM_PTR(&py_image_cut_obj)},
@@ -6619,7 +6496,7 @@ mp_obj_t py_image(int w, int h, int bpp, void *pixels)
     o->_cobj.h = h;
     o->_cobj.bpp = bpp;
     o->_cobj.pixels = pixels;
-    o->_cobj.pix_ai = NULL;
+    // AI buffers permanently disabled
     return o;
 }
 
@@ -7070,95 +6947,6 @@ int py_image_descriptor_from_roi(image_t *img, const char *path, rectangle_t *ro
 
 #endif //OMV_MINIMUM
 
-//input: SRC,DST point list
-//output: transform matrix
-mp_obj_t py_image_GetAffineTransform(mp_obj_t src_list, mp_obj_t dst_list)
-{
-	uint16_t src_pos[10][2];	//max 10 points
-	uint16_t dst_pos[10][2];	//max 10 points
-	float T[3][3];	//only support 2D affine
-	if(MP_OBJ_IS_TYPE(src_list, &mp_type_list) && \
-	MP_OBJ_IS_TYPE(dst_list, &mp_type_list) ){
-		mp_uint_t src_l_len, dst_l_len;
-		mp_obj_t *src_l;
-		mp_obj_t *dst_l;
-		mp_obj_get_array(src_list, &src_l_len, &src_l);
-		mp_obj_get_array(dst_list, &dst_l_len, &dst_l);	
-		PY_ASSERT_TRUE_MSG(src_l_len == dst_l_len, "src len must equal with dst len");
-		PY_ASSERT_TRUE_MSG(src_l_len<=10, "must<=10 points");
-		// get src and dst points
-		for(int i=0; i<src_l_len; i++) {
-			mp_obj_t *tuple;
-            mp_obj_get_array_fixed_n(src_l[i], 2, &tuple);
-            src_pos[i][0] = mp_obj_get_int(tuple[0]);
-            src_pos[i][1] = mp_obj_get_int(tuple[1]);
-            mp_obj_get_array_fixed_n(dst_l[i], 2, &tuple);
-            dst_pos[i][0] = mp_obj_get_int(tuple[0]);
-            dst_pos[i][1] = mp_obj_get_int(tuple[1]);
-			//printf("point %d: (%d,%d)->(%d,%d)\r\n", i, src_pos[i][0],src_pos[i][1],dst_pos[i][0],dst_pos[i][1]);
-		}
-		imlib_affine_getTansform(src_pos, dst_pos, src_l_len, T);
-		/*printf("%.3f,%.3f,%.3f\r\n",T[0][0],T[0][1],T[0][2]);
-		printf("%.3f,%.3f,%.3f\r\n",T[1][0],T[1][1],T[1][2]);
-		printf("%.3f,%.3f,%.3f\r\n",T[2][0],T[2][1],T[2][2]);*/
-        // return: [[1,2,3], [1,2,3], [1,2,3]]
-		return mp_obj_new_tuple(9, (mp_obj_t [9]) 
-			{mp_obj_new_float(T[0][0]),
-			mp_obj_new_float(T[0][1]),
-			mp_obj_new_float(T[0][2]),
-			mp_obj_new_float(T[1][0]),
-			mp_obj_new_float(T[1][1]),
-			mp_obj_new_float(T[1][2]),
-			mp_obj_new_float(T[2][0]),
-			mp_obj_new_float(T[2][1]),
-			mp_obj_new_float(T[2][2])});
-	}
-	else{
-		nlr_raise(mp_obj_new_exception_msg(&mp_type_OSError, "Need input [[x0,y0],[x1,y1],...]\r\n"));
-	}
-	return MP_OBJ_NULL;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(py_image_GetAffineTransform_obj, py_image_GetAffineTransform);
-
-
-//img_src + T -> dat_img
-mp_obj_t py_image_warpAffine_ai(mp_obj_t src_img_obj , mp_obj_t dst_img_obj , mp_obj_t transform_obj)
-{
-	float T[3*3];
-	mp_obj_t *tuple;
-	mp_obj_get_array_fixed_n(transform_obj, 9, &tuple);
-	for(int i=0; i<9; i++) {
-		T[i] = mp_obj_get_float(tuple[i]);
-	}
-	
-	image_t* src_img = (image_t *) py_image_cobj(src_img_obj);
-	image_t* dst_img = (image_t *) py_image_cobj(dst_img_obj);
-	int ret = imlib_affine_ai(src_img, dst_img, T);
-    if(ret != 0)
-    {
-        if(ret == -1)
-        {
-            mp_raise_msg(&mp_type_ValueError, "src_img->bpp != dst_img->bpp");
-        }
-        else if(ret == -2)
-        {
-            mp_raise_msg(&mp_type_ValueError, "only support ai image affine");
-        }
-        else if(ret == -3)
-        {
-            mp_raise_msg(&mp_type_ValueError,"only support grayscale or RGB565 pic");
-            
-        }
-        mp_raise_OSError(ret);
-    }
-	
-	return mp_const_none;
-}
-
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(py_image_warpAffine_ai_obj, py_image_warpAffine_ai);
-
-
-
 static const mp_rom_map_elem_t globals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__),            MP_OBJ_NEW_QSTR(MP_QSTR_image)},
 #ifndef OMV_MINIMUM
@@ -7207,8 +6995,6 @@ static const mp_rom_map_elem_t globals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR_lab_to_rgb),          MP_ROM_PTR(&py_image_lab_to_rgb_obj)},
     {MP_ROM_QSTR(MP_QSTR_rgb_to_grayscale),    MP_ROM_PTR(&py_image_rgb_to_grayscale_obj)},
     {MP_ROM_QSTR(MP_QSTR_grayscale_to_rgb),    MP_ROM_PTR(&py_image_grayscale_to_rgb_obj)},
-    {MP_ROM_QSTR(MP_QSTR_get_affine_transform), MP_ROM_PTR(&py_image_GetAffineTransform_obj)},
-	{MP_ROM_QSTR(MP_QSTR_warp_affine_ai),              MP_ROM_PTR(&py_image_warpAffine_ai_obj)},
 #ifndef OMV_MINIMUM
     {MP_ROM_QSTR(MP_QSTR_HaarCascade),         MP_ROM_PTR(&py_image_load_cascade_obj)},
     {MP_ROM_QSTR(MP_QSTR_load_descriptor),     MP_ROM_PTR(&py_image_load_descriptor_obj)},
