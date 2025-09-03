@@ -31,6 +31,9 @@
 #include "Maix_config.h"
 #include "sensor_device.h"
 
+// Disable AI buffers to save memory (comment out to enable AI features)
+#define DISABLE_AI_BUFFERS
+
 extern volatile dvp_t *const dvp;
 
 #define OV_CHIP_ID (0x0A)
@@ -162,7 +165,9 @@ static int sensor_irq(void *ctx)
                 {
                     // g_dvp_finish_flag = 0;
                     // printk("--%d\r\n",g_sensor_buff_index_in);
-                    dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+#ifndef DISABLE_AI_BUFFERS
+    dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
                     dvp_set_display_addr((uint32_t)MAIN_FB()->pixels[g_sensor_buff_index_in]);
                     dvp_start_convert();
                 }
@@ -173,7 +178,9 @@ static int sensor_irq(void *ctx)
                 {
                     // g_dvp_finish_flag = 0;
                     // printk("==%d\r\n",g_sensor_buff_index_in);
-                    dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+#ifndef DISABLE_AI_BUFFERS
+    dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
                     dvp_set_display_addr((uint32_t)MAIN_FB()->pixels[g_sensor_buff_index_in]);
                     dvp_start_convert();
                 }
@@ -241,18 +248,22 @@ void sensor_init_fb()
     {
         if (MAIN_FB()->pixels[j])
             free(MAIN_FB()->pixels[j]);
+        MAIN_FB()->pixels[j] = NULL;
+#ifndef DISABLE_AI_BUFFERS
         if (MAIN_FB()->pix_ai[j])
             free(MAIN_FB()->pix_ai[j]);
-        MAIN_FB()->pixels[j] = NULL;
         MAIN_FB()->pix_ai[j] = NULL;
+#endif
     }
 #else
     if (MAIN_FB()->pixels)
         free(MAIN_FB()->pixels);
+    MAIN_FB()->pixels = NULL;
+#ifndef DISABLE_AI_BUFFERS
     if (MAIN_FB()->pix_ai)
         free(MAIN_FB()->pix_ai);
-    MAIN_FB()->pixels = NULL;
     MAIN_FB()->pix_ai = NULL;
+#endif
 #endif
 }
 
@@ -620,16 +631,24 @@ int sensor_init_dvp(mp_int_t freq, bool default_freq)
     dvp_set_image_format(DVP_CFG_YUV_FORMAT);
     dvp_disable_burst();
 	dvp_disable_auto();
+#ifdef DISABLE_AI_BUFFERS
+	dvp_set_output_enable(0, 0);	//disable AI output
+#else
 	dvp_set_output_enable(0, 1);	//enable to AI
+#endif
 	dvp_set_output_enable(1, 1);	//enable to lcd
     if(sensor.size_set)
     {
         dvp_set_image_size(MAIN_FB()->w_max, MAIN_FB()->h_max);
 #if CONFIG_MAIXPY_OMV_DOUBLE_BUFF
-        dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+    #ifndef DISABLE_AI_BUFFERS
+    dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
         dvp_set_display_addr((uint32_t)MAIN_FB()->pixels[g_sensor_buff_index_in]);
 #else
+#ifndef DISABLE_AI_BUFFERS
         dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai, (uint32_t)(MAIN_FB()->pix_ai + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
         dvp_set_display_addr((uint32_t)MAIN_FB()->pixels);
 #endif
     }
@@ -704,25 +723,31 @@ void sensor_deinit()
 {
     sensor_run(0);
     dvp_set_image_size(0, 0);
+#ifndef DISABLE_AI_BUFFERS
     dvp_set_ai_addr(0, 0, 0);
+#endif
     dvp_set_display_addr(0);
 #if CONFIG_MAIXPY_OMV_DOUBLE_BUFF
     for (int j = 0; j < SENSOR_BUFFER_NUM; ++j)
     {
         if (MAIN_FB()->pixels[j])
             free(MAIN_FB()->pixels[j]);
+        MAIN_FB()->pixels[j] = NULL;
+#ifndef DISABLE_AI_BUFFERS
         if (MAIN_FB()->pix_ai[j])
             free(MAIN_FB()->pix_ai[j]);
-        MAIN_FB()->pixels[j] = NULL;
         MAIN_FB()->pix_ai[j] = NULL;
+#endif
     }
 #else
     if (MAIN_FB()->pixels)
         free(MAIN_FB()->pixels);
+    MAIN_FB()->pixels = NULL;
+#ifndef DISABLE_AI_BUFFERS
     if (MAIN_FB()->pix_ai)
         free(MAIN_FB()->pix_ai);
-    MAIN_FB()->pixels = NULL;
     MAIN_FB()->pix_ai = NULL;
+#endif
 #endif
     MAIN_FB()->w = 0;
     MAIN_FB()->h = 0;
@@ -928,16 +953,24 @@ int binocular_sensor_reset(mp_int_t freq)
 
     dvp_enable_burst();
     dvp_disable_auto();
+#ifdef DISABLE_AI_BUFFERS
+    dvp_set_output_enable(0, 0); //disable AI output
+#else
     dvp_set_output_enable(0, 1); //enable to AI
+#endif
     dvp_set_output_enable(1, 1); //enable to lcd
     if (sensor.size_set)
     {
         dvp_set_image_size(MAIN_FB()->w_max, MAIN_FB()->h_max);
 #if CONFIG_MAIXPY_OMV_DOUBLE_BUFF
-        dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+    #ifndef DISABLE_AI_BUFFERS
+    dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
         dvp_set_display_addr((uint32_t)MAIN_FB()->pixels[g_sensor_buff_index_in]);
 #else
+#ifndef DISABLE_AI_BUFFERS
         dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai, (uint32_t)(MAIN_FB()->pix_ai + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
         dvp_set_display_addr((uint32_t)MAIN_FB()->pixels);
 #endif
     }
@@ -1058,7 +1091,12 @@ int sensor_set_pixformat(pixformat_t pixformat, bool set_regs)
         dvp_set_image_format(DVP_CFG_YUV_FORMAT);
         break;
     case PIXFORMAT_GRAYSCALE:
+#ifdef DISABLE_AI_BUFFERS
+        // Use YUV format which works with display buffer, then extract Y component
+        dvp_set_image_format(DVP_CFG_YUV_FORMAT);
+#else
         dvp_set_image_format(DVP_CFG_Y_FORMAT);
+#endif
         break;
     // case PIXFORMAT_JPEG:
     //     dvp_set_image_format(DVP_CFG_RGB_FORMAT);
@@ -1122,20 +1160,25 @@ int sensor_set_framesize(framesize_t framesize, bool set_regs)
         {
             if (MAIN_FB()->pixels[i])
                 free(MAIN_FB()->pixels[i]);
+#ifndef DISABLE_AI_BUFFERS
             if (MAIN_FB()->pix_ai[i])
                 free(MAIN_FB()->pix_ai[i]);
+#endif
             MAIN_FB()->pixels[i] = (uint8_t *)malloc((MAIN_FB()->w * MAIN_FB()->h * OMV_INIT_BPP + 127) / 128 * 128);
             if (!MAIN_FB()->pixels[i])
             {
                 for (int j = 0; j < i; ++j)
                 {
                     free(MAIN_FB()->pixels[j]);
-                    free(MAIN_FB()->pix_ai[j]);
                     MAIN_FB()->pixels[j] = NULL;
+#ifndef DISABLE_AI_BUFFERS
+                    free(MAIN_FB()->pix_ai[j]);
                     MAIN_FB()->pix_ai[j] = NULL;
+#endif
                 }
                 return ENOMEM;
             }
+#ifndef DISABLE_AI_BUFFERS
             MAIN_FB()->pix_ai[i] = (uint8_t *)malloc((MAIN_FB()->w * MAIN_FB()->h * 3 + 63) / 64 * 64);
             if (!MAIN_FB()->pix_ai[i])
             {
@@ -1150,6 +1193,7 @@ int sensor_set_framesize(framesize_t framesize, bool set_regs)
                 MAIN_FB()->pixels[i] = NULL;
                 return ENOMEM;
             }
+#endif
         }
 #else
         if (MAIN_FB()->pixels)
@@ -1159,6 +1203,7 @@ int sensor_set_framesize(framesize_t framesize, bool set_regs)
         MAIN_FB()->pixels = (uint8_t *)malloc((MAIN_FB()->w * MAIN_FB()->h * OMV_INIT_BPP + 127) / 128 * 128);
         if (!MAIN_FB()->pixels)
             return ENOMEM;
+#ifndef DISABLE_AI_BUFFERS
         MAIN_FB()->pix_ai = (uint8_t *)malloc((MAIN_FB()->w * MAIN_FB()->h * 3 + 63) / 64 * 64);
         if (!MAIN_FB()->pix_ai)
         {
@@ -1167,15 +1212,20 @@ int sensor_set_framesize(framesize_t framesize, bool set_regs)
             return ENOMEM;
         }
 #endif
+#endif
     }
     if (sensor.reset_set)
     {
         dvp_set_image_size(MAIN_FB()->w_max, MAIN_FB()->h_max);
 #if CONFIG_MAIXPY_OMV_DOUBLE_BUFF
-        dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+    #ifndef DISABLE_AI_BUFFERS
+    dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
         dvp_set_display_addr((uint32_t)MAIN_FB()->pixels[g_sensor_buff_index_in]);
 #else
+#ifndef DISABLE_AI_BUFFERS
         dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai, (uint32_t)(MAIN_FB()->pix_ai + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
         dvp_set_display_addr((uint32_t)MAIN_FB()->pixels);
 #endif
         sensor_run(1);
@@ -1216,9 +1266,13 @@ int sensor_set_windowing(int x, int y, int w, int h)
     }
 	dvp_set_image_size(w, h);	//set QVGA default
 #if CONFIG_MAIXPY_OMV_DOUBLE_BUFF
+#ifndef DISABLE_AI_BUFFERS
     dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai[g_sensor_buff_index_in], (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai[g_sensor_buff_index_in] + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
 #else
+#ifndef DISABLE_AI_BUFFERS
     dvp_set_ai_addr((uint32_t)MAIN_FB()->pix_ai, (uint32_t)(MAIN_FB()->pix_ai + MAIN_FB()->w * MAIN_FB()->h), (uint32_t)(MAIN_FB()->pix_ai + MAIN_FB()->w * MAIN_FB()->h * 2));
+#endif
 #endif
     return 0;
 }
@@ -1658,8 +1712,10 @@ int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_c
             image->w = MAIN_FB()->w;
             image->h = MAIN_FB()->h;
             image->bpp = MAIN_FB()->bpp;
-            image->pix_ai = MAIN_FB()->pix_ai[g_sensor_buff_index_out];
             image->pixels = MAIN_FB()->pixels[g_sensor_buff_index_out];
+#ifndef DISABLE_AI_BUFFERS
+            image->pix_ai = MAIN_FB()->pix_ai[g_sensor_buff_index_out];
+#endif
         }
         else
         {
@@ -1676,8 +1732,10 @@ int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_c
             image->w = MAIN_FB()->w;
             image->h = MAIN_FB()->h;
             image->bpp = MAIN_FB()->bpp;
-            image->pix_ai = MAIN_FB()->pix_ai[0];
             image->pixels = MAIN_FB()->pixels[0];
+#ifndef DISABLE_AI_BUFFERS
+            image->pix_ai = MAIN_FB()->pix_ai[0];
+#endif
         }
 #else
         //wait for new frame
@@ -1693,8 +1751,10 @@ int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_c
         image->w = MAIN_FB()->w;
         image->h = MAIN_FB()->h;
         image->bpp = MAIN_FB()->bpp;
-        image->pix_ai = MAIN_FB()->pix_ai;
         image->pixels = MAIN_FB()->pixels;
+#ifndef DISABLE_AI_BUFFERS
+        image->pix_ai = MAIN_FB()->pix_ai;
+#endif
 #endif
         //as data come in is in u32 LE format, we need exchange its order
         //unsigned long t0,t1;
@@ -1704,7 +1764,23 @@ int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_c
 
         if (sensor->pixformat == PIXFORMAT_GRAYSCALE)
         {
+#ifdef DISABLE_AI_BUFFERS
+            // Apply standard pixel reversal since we're using YUV format (2 bytes/pixel)
+            reverse_u32pixel((uint32_t *)(image->pixels), (MAIN_FB()->w) * (MAIN_FB()->h) / 2);
+            
+            // Extract Y component from YUV422 data to create grayscale
+            // YUV422 format is YUYV: Y0 U Y1 V (each component is 1 byte)
+            uint8_t *yuv_data = (uint8_t *)(image->pixels);
+            uint8_t *gray_out = (uint8_t *)(image->pixels);
+            int pixel_count = (MAIN_FB()->w) * (MAIN_FB()->h);
+            
+            // Extract every other byte (Y components) for grayscale
+            for (int i = 0; i < pixel_count; i++) {
+                gray_out[i] = yuv_data[i * 2];  // Extract Y component (every 2nd byte)
+            }
+#else
             image->pixels = image->pix_ai;
+#endif
         }
         else
         {
