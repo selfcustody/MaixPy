@@ -164,14 +164,14 @@ STATIC mp_obj_t mod_uhashlib_pbkdf2_hmac_sha256(size_t n_args, const mp_obj_t *p
             // Inner hash
             sha256_context_t inner_ctx, outer_ctx;
             size_t inner_total_len = 64 + salt_buf.len + 4;
-            sha256_quick_init(&inner_ctx, inner_total_len);
+            sha256_init(&inner_ctx, inner_total_len);
             sha256_update(&inner_ctx, inner_pad, 64);
             sha256_update(&inner_ctx, initial_message, salt_buf.len + 4);
             uint8_t inner_hash[32];
             sha256_final(&inner_ctx, inner_hash);
 
             // Outer hash
-            sha256_quick_init(&outer_ctx, 64 + 32);
+            sha256_init(&outer_ctx, 64 + 32);
             sha256_update(&outer_ctx, outer_pad, 64);
             sha256_update(&outer_ctx, inner_hash, 32);
             sha256_final(&outer_ctx, u_current);

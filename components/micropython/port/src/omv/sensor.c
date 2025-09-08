@@ -29,6 +29,7 @@
 #include "ov5640.h"
 #include "ov5642.h"
 #include "Maix_config.h"
+#include "sensor_device.h"
 
 extern volatile dvp_t *const dvp;
 
@@ -95,25 +96,6 @@ void _ndelay(uint32_t ns)
             __asm__ __volatile__("nop");
     }
 }
-
-static struct sensor_config_t {
-    uint8_t cmos_pclk;
-    uint8_t cmos_xclk;
-    uint8_t cmos_href;
-    uint8_t cmos_pwdn;
-    uint8_t cmos_vsync;
-    uint8_t cmos_rst;
-
-    uint8_t reg_width;
-    uint8_t i2c_num;
-    uint8_t pin_clk;
-    uint8_t pin_sda;
-    uint8_t gpio_clk;
-    uint8_t gpio_sda;
-} sensor_config = {
-    47, 46, 45, 44, 43, 42,
-    8, 2, 41, 40, 0, 0
-};
 
 #define SENSOR_CHECK_CONFIG(GOAL, val)                                                                        \
     {                                                                                                         \
