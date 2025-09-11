@@ -749,10 +749,8 @@ int sensor_set_pixformat(pixformat_t pixformat, bool set_regs)
             break;
         } // to next yuv422
     case PIXFORMAT_YUV422:
-        dvp_set_image_format(DVP_CFG_YUV_FORMAT);
-        break;
     case PIXFORMAT_GRAYSCALE:
-        // Use YUV format which works with display buffer, then extract Y component
+        // Use YUV format for both YUV422 and grayscale (extract Y component for grayscale)
         dvp_set_image_format(DVP_CFG_YUV_FORMAT);
         break;
     // case PIXFORMAT_JPEG:
