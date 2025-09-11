@@ -3893,52 +3893,52 @@ static const mp_obj_type_t py_line_type = {
     .locals_dict = (mp_obj_t) &py_line_locals_dict
 };
 
-static mp_obj_t py_image_get_regression(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
-{
-    image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
+// static mp_obj_t py_image_get_regression(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
+// {
+//     image_t *arg_img = py_helper_arg_to_image_mutable(args[0]);
 
-    list_t thresholds;
-    list_init(&thresholds, sizeof(color_thresholds_list_lnk_data_t));
-    py_helper_arg_to_thresholds(args[1], &thresholds);
-    if (!list_size(&thresholds)) return mp_const_none;
-    bool invert = py_helper_keyword_int(n_args, args, 2, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_invert), false);
+//     list_t thresholds;
+//     list_init(&thresholds, sizeof(color_thresholds_list_lnk_data_t));
+//     py_helper_arg_to_thresholds(args[1], &thresholds);
+//     if (!list_size(&thresholds)) return mp_const_none;
+//     bool invert = py_helper_keyword_int(n_args, args, 2, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_invert), false);
 
-    rectangle_t roi;
-    py_helper_keyword_rectangle_roi(arg_img, n_args, args, 3, kw_args, &roi);
+//     rectangle_t roi;
+//     py_helper_keyword_rectangle_roi(arg_img, n_args, args, 3, kw_args, &roi);
 
-    unsigned int x_stride = py_helper_keyword_int(n_args, args, 4, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_x_stride), 2);
-    PY_ASSERT_TRUE_MSG(x_stride > 0, "x_stride must not be zero.");
-    unsigned int y_stride = py_helper_keyword_int(n_args, args, 5, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_y_stride), 1);
-    PY_ASSERT_TRUE_MSG(y_stride > 0, "y_stride must not be zero.");
-    unsigned int area_threshold = py_helper_keyword_int(n_args, args, 6, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_area_threshold), 10);
-    unsigned int pixels_threshold = py_helper_keyword_int(n_args, args, 7, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_pixels_threshold), 10);
-    bool robust = py_helper_keyword_int(n_args, args, 8, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_robust), false);
+//     unsigned int x_stride = py_helper_keyword_int(n_args, args, 4, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_x_stride), 2);
+//     PY_ASSERT_TRUE_MSG(x_stride > 0, "x_stride must not be zero.");
+//     unsigned int y_stride = py_helper_keyword_int(n_args, args, 5, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_y_stride), 1);
+//     PY_ASSERT_TRUE_MSG(y_stride > 0, "y_stride must not be zero.");
+//     unsigned int area_threshold = py_helper_keyword_int(n_args, args, 6, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_area_threshold), 10);
+//     unsigned int pixels_threshold = py_helper_keyword_int(n_args, args, 7, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_pixels_threshold), 10);
+//     bool robust = py_helper_keyword_int(n_args, args, 8, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_robust), false);
 
-    find_lines_list_lnk_data_t out;
-    fb_alloc_mark();
-    bool result = imlib_get_regression(&out, arg_img, &roi, x_stride, y_stride, &thresholds, invert, area_threshold, pixels_threshold, robust);
-    fb_alloc_free_till_mark();
-    list_free(&thresholds);
-    if (!result) {
-        return mp_const_none;
-    }
+//     find_lines_list_lnk_data_t out;
+//     fb_alloc_mark();
+//     bool result = imlib_get_regression(&out, arg_img, &roi, x_stride, y_stride, &thresholds, invert, area_threshold, pixels_threshold, robust);
+//     fb_alloc_free_till_mark();
+//     list_free(&thresholds);
+//     if (!result) {
+//         return mp_const_none;
+//     }
 
-    py_line_obj_t *o = m_new_obj(py_line_obj_t);
-    o->base.type = &py_line_type;
-    o->x1 = mp_obj_new_int(out.line.x1);
-    o->y1 = mp_obj_new_int(out.line.y1);
-    o->x2 = mp_obj_new_int(out.line.x2);
-    o->y2 = mp_obj_new_int(out.line.y2);
-    int x_diff = out.line.x2 - out.line.x1;
-    int y_diff = out.line.y2 - out.line.y1;
-    o->length = mp_obj_new_int(fast_roundf(fast_sqrtf((x_diff * x_diff) + (y_diff * y_diff))));
-    o->magnitude = mp_obj_new_int(out.magnitude);
-    o->theta = mp_obj_new_int(out.theta);
-    o->rho = mp_obj_new_int(out.rho);
+//     py_line_obj_t *o = m_new_obj(py_line_obj_t);
+//     o->base.type = &py_line_type;
+//     o->x1 = mp_obj_new_int(out.line.x1);
+//     o->y1 = mp_obj_new_int(out.line.y1);
+//     o->x2 = mp_obj_new_int(out.line.x2);
+//     o->y2 = mp_obj_new_int(out.line.y2);
+//     int x_diff = out.line.x2 - out.line.x1;
+//     int y_diff = out.line.y2 - out.line.y1;
+//     o->length = mp_obj_new_int(fast_roundf(fast_sqrtf((x_diff * x_diff) + (y_diff * y_diff))));
+//     o->magnitude = mp_obj_new_int(out.magnitude);
+//     o->theta = mp_obj_new_int(out.theta);
+//     o->rho = mp_obj_new_int(out.rho);
 
-    return o;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_get_regression_obj, 2, py_image_get_regression);
+//     return o;
+// }
+// STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_get_regression_obj, 2, py_image_get_regression);
 
 ///////////////
 // Find Methods
@@ -5321,7 +5321,7 @@ static mp_obj_t py_image_find_displacement(size_t n_args, const mp_obj_t *args, 
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_find_displacement_obj, 2, py_image_find_displacement);
 #endif // IMLIB_ENABLE_FIND_DISPLACEMENT
 
-#ifndef OMV_MINIMUM
+#ifdef OMV_OPTIONAL_I
 static mp_obj_t py_image_find_template(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
 {
     image_t *arg_img = py_helper_arg_to_image_grayscale(args[0]);
@@ -5469,7 +5469,7 @@ static mp_obj_t py_image_find_keypoints(size_t n_args, const mp_obj_t *args, mp_
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_find_keypoints_obj, 1, py_image_find_keypoints);
 
-#endif //OMV_MINIMUM
+#endif //OMV_OPTIONAL_I
 
 #ifdef IMLIB_ENABLE_BINARY_OPS
 static mp_obj_t py_image_find_edges(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
@@ -5923,7 +5923,7 @@ static mp_obj_t py_image_cut(size_t n_args, const mp_obj_t *args)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(py_image_cut_obj, 4, 5, py_image_cut);
 
-#ifndef OMV_MINIMUM
+#ifdef OMV_OPTIONAL_I
 //输入灰度图像，找出面积最大的连通域
 #define MAX_DOMAIN_CNT 254
 
@@ -6072,7 +6072,7 @@ static mp_obj_t py_image_find_domain(size_t n_args, const mp_obj_t *args, mp_map
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_find_domain_obj, 2, py_image_find_domain);
 
-#endif // OMV_MINIMUM
+#endif // OMV_OPTIONAL_I
 
 static const mp_rom_map_elem_t locals_dict_table[] = {
     /* Basic Methods */
@@ -6220,7 +6220,7 @@ static const mp_rom_map_elem_t locals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR_get_stats),           MP_ROM_PTR(&py_image_get_statistics_obj)},
     {MP_ROM_QSTR(MP_QSTR_get_statistics),      MP_ROM_PTR(&py_image_get_statistics_obj)},
     {MP_ROM_QSTR(MP_QSTR_statistics),          MP_ROM_PTR(&py_image_get_statistics_obj)},
-    {MP_ROM_QSTR(MP_QSTR_get_regression),      MP_ROM_PTR(&py_image_get_regression_obj)},
+    // {MP_ROM_QSTR(MP_QSTR_get_regression),      MP_ROM_PTR(&py_image_get_regression_obj)},
     /* Find Methods */
     {MP_ROM_QSTR(MP_QSTR_find_blobs),          MP_ROM_PTR(&py_image_find_blobs_obj)},
 #endif //OMV_MINIMUM
@@ -6251,14 +6251,14 @@ static const mp_rom_map_elem_t locals_dict_table[] = {
 #ifdef IMLIB_ENABLE_FIND_DISPLACEMENT
     {MP_ROM_QSTR(MP_QSTR_find_displacement),   MP_ROM_PTR(&py_image_find_displacement_obj)},
 #endif
-#ifndef OMV_MINIMUM
+#ifdef OMV_OPTIONAL_I
     {MP_ROM_QSTR(MP_QSTR_find_template),       MP_ROM_PTR(&py_image_find_template_obj)},
     {MP_ROM_QSTR(MP_QSTR_find_features),       MP_ROM_PTR(&py_image_find_features_obj)},
     {MP_ROM_QSTR(MP_QSTR_find_eye),            MP_ROM_PTR(&py_image_find_eye_obj)},
     {MP_ROM_QSTR(MP_QSTR_find_lbp),            MP_ROM_PTR(&py_image_find_lbp_obj)},
     {MP_ROM_QSTR(MP_QSTR_find_keypoints),      MP_ROM_PTR(&py_image_find_keypoints_obj)},
     {MP_ROM_QSTR(MP_QSTR_find_domain),    MP_ROM_PTR(&py_image_find_domain_obj)},
-#endif //OMV_MINIMUM
+#endif //OMV_OPTIONAL_I
 #ifdef IMLIB_ENABLE_BINARY_OPS
     {MP_ROM_QSTR(MP_QSTR_find_edges),          MP_ROM_PTR(&py_image_find_edges_obj)},
 #endif
@@ -6702,7 +6702,7 @@ mp_obj_t py_image_font_free(size_t n_args, const mp_obj_t *args, mp_map_t *kw_ar
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_image_font_free_obj, 0, py_image_font_free);
 
-#ifndef OMV_MINIMUM
+#ifdef OMV_OPTIONAL_II
 mp_obj_t py_image_load_cascade(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
 {
     cascade_t cascade;
@@ -6945,7 +6945,7 @@ int py_image_descriptor_from_roi(image_t *img, const char *path, rectangle_t *ro
     return 0;
 }
 
-#endif //OMV_MINIMUM
+#endif //OMV_OPTIONAL_II
 
 static const mp_rom_map_elem_t globals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR___name__),            MP_OBJ_NEW_QSTR(MP_QSTR_image)},
@@ -6995,7 +6995,7 @@ static const mp_rom_map_elem_t globals_dict_table[] = {
     {MP_ROM_QSTR(MP_QSTR_lab_to_rgb),          MP_ROM_PTR(&py_image_lab_to_rgb_obj)},
     {MP_ROM_QSTR(MP_QSTR_rgb_to_grayscale),    MP_ROM_PTR(&py_image_rgb_to_grayscale_obj)},
     {MP_ROM_QSTR(MP_QSTR_grayscale_to_rgb),    MP_ROM_PTR(&py_image_grayscale_to_rgb_obj)},
-#ifndef OMV_MINIMUM
+#ifdef OMV_OPTIONAL_II
     {MP_ROM_QSTR(MP_QSTR_HaarCascade),         MP_ROM_PTR(&py_image_load_cascade_obj)},
     {MP_ROM_QSTR(MP_QSTR_load_descriptor),     MP_ROM_PTR(&py_image_load_descriptor_obj)},
     {MP_ROM_QSTR(MP_QSTR_save_descriptor),     MP_ROM_PTR(&py_image_save_descriptor_obj)},

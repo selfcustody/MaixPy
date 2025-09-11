@@ -12,6 +12,8 @@
 #include "py/mpconfig.h"
 #include "global_config.h"
 
+// #define OMV_OPTIONAL_I
+// #define OMV_OPTIONAL_II
 #if CONFIG_MAIXPY_OMV_MINIMUM
 
 #ifndef CONFIG_MAIXPY_OMV_CONV_YUV_FAST
