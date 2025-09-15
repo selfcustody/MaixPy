@@ -89,9 +89,18 @@ static int gc2145_set_pixformat(sensor_t *sensor, pixformat_t pixformat)
             
         case PIXFORMAT_YUV422:
         case PIXFORMAT_GRAYSCALE:
-            // YUV422 mode (value 2 in bits 4:0 of register 0x84)
-            // For grayscale, this provides the luminance channel
+            //TODO: YUV422 still seems to be duplicating values 2 bytes of Y data in each YUV block
+            // In practice this results in reduced resolution in one axis.
+
+            // Use YUV422 mode for grayscale to avoid ISP color correction artifacts
             ret |= set_reg_bits(sensor->slv_addr, 0x84, 0x1f, 0, 2);
+        
+            // Disable specific ISP modules that cause interlaced artifacts in colored regions
+            ret |= cambus_writeb(sensor->slv_addr, 0xfe, 0x02); // Switch to page 2
+            ret |= cambus_writeb(sensor->slv_addr, 0xd1, 0x00); // Disable YCP color saturation 
+            ret |= cambus_writeb(sensor->slv_addr, 0xd2, 0x00); // Disable YCP color saturation
+            ret |= cambus_writeb(sensor->slv_addr, 0xfe, 0x00); // Back to page 0 
+               
             break;
             
         default:

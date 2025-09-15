@@ -1346,20 +1346,23 @@ int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_c
         //exchang_data_byte((image->pixels), (MAIN_FB()->w)*(MAIN_FB()->h)*2);
         //exchang_pixel((image->pixels), (MAIN_FB()->w)*(MAIN_FB()->h)); //cost 3ms@400M
 
-        reverse_u32pixel((uint32_t *)(image->pixels), (MAIN_FB()->w) * (MAIN_FB()->h) / 2);
-        
-        if (sensor->pixformat == PIXFORMAT_GRAYSCALE)
-        {
-            // Extract Y component from YUV422 data to create grayscale
-            // YUV422 format is YUYV: Y0 U Y1 V (each component is 1 byte)
+        if (sensor->pixformat == PIXFORMAT_GRAYSCALE) {
             uint8_t *yuv_data = (uint8_t *)(image->pixels);
             uint8_t *gray_out = (uint8_t *)(image->pixels);
             int pixel_count = (MAIN_FB()->w) * (MAIN_FB()->h);
-            
-            // Extract every other byte (Y components) for grayscale
-            for (int i = 0; i < pixel_count; i++) {
-            gray_out[i] = yuv_data[i * 2];  // Extract Y component (every 2nd byte)
+            uint8_t *yuv_ptr = yuv_data + 1;
+            uint8_t *gray_ptr = gray_out;
+            uint8_t *gray_end = gray_out + pixel_count;
+
+            while (gray_ptr < gray_end) {
+                *gray_ptr++ = yuv_ptr[2];
+                *gray_ptr++ = *yuv_ptr;
+                yuv_ptr += 4;
             }
+        }
+        else
+        {
+            reverse_u32pixel((uint32_t *)(image->pixels), (MAIN_FB()->w) * (MAIN_FB()->h) / 2);
         }
 
         //t1=read_cycle();
