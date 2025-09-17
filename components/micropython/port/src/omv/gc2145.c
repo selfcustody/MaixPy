@@ -63,10 +63,47 @@ static int gc2145_write_reg(sensor_t *sensor, uint8_t reg_addr, uint16_t reg_dat
     return cambus_writeb(sensor->slv_addr, reg_addr, (uint8_t)reg_data);
 }
 
+static int set_reg_bits(uint8_t slv_addr, uint8_t reg_addr, uint8_t mask, uint8_t shift, uint8_t value)
+{
+    uint8_t reg_data;
+    if (cambus_readb(slv_addr, reg_addr, &reg_data) != 0) {
+        return -1;
+    }
+    reg_data &= ~(mask << shift);
+    reg_data |= ((value & mask) << shift);
+    return cambus_writeb(slv_addr, reg_addr, reg_data);
+}
+
 static int gc2145_set_pixformat(sensor_t *sensor, pixformat_t pixformat)
 {
-    // TODO:
-    return 0;
+    int ret = 0;
+    
+    // Switch to page 0
+    ret |= cambus_writeb(sensor->slv_addr, 0xfe, 0x00);
+    
+    switch (pixformat) {
+        case PIXFORMAT_RGB565:
+            // RGB565 mode (value 6 in bits 4:0 of register 0x84)
+            ret |= set_reg_bits(sensor->slv_addr, 0x84, 0x1f, 0, 6);
+            break;
+            
+        case PIXFORMAT_YUV422:
+        case PIXFORMAT_GRAYSCALE:
+            ret |= set_reg_bits(sensor->slv_addr, 0x84, 0x1f, 0, 0);
+        
+            // Disable specific ISP modules that cause interlaced artifacts in colored regions
+            ret |= cambus_writeb(sensor->slv_addr, 0xfe, 0x02); // Switch to page 2
+            ret |= cambus_writeb(sensor->slv_addr, 0xd1, 0x00); // Disable YCP color saturation 
+            ret |= cambus_writeb(sensor->slv_addr, 0xd2, 0x00); // Disable YCP color saturation
+            ret |= cambus_writeb(sensor->slv_addr, 0xfe, 0x00); // Back to page 0 
+               
+            break;
+            
+        default:
+            return -1;
+    }
+    
+    return ret;
 }
 
 static int gc2145_set_framesize(sensor_t *sensor, framesize_t framesize)

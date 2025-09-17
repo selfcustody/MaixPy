@@ -86,9 +86,9 @@ void fb_update_jpeg_buffer()
                 src.h=MAIN_FB()->h;
                 src.bpp=MAIN_FB()->bpp;
 #if CONFIG_MAIXPY_OMV_DOUBLE_BUFF
-                src.pixels=MAIN_FB()->pix_ai[g_sensor_buff_index_out];
+                src.pixels=MAIN_FB()->pixels[g_sensor_buff_index_out];
 #else
-                src.pixels=MAIN_FB()->pix_ai;
+                src.pixels=MAIN_FB()->pixels;
 #endif
             }
             else
