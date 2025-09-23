@@ -175,7 +175,7 @@ static uint8_t sd_get_response(void)
         /*!< Right response got */
         if (result != 0xFF)
             return result;
-    }
+        }
     /*!< After time out */
     return 0xFF;
 }
@@ -219,7 +219,7 @@ static uint8_t sd_get_csdregister(SD_CSD *SD_csd)
 {
     uint8_t csd_tab[18];
     /*!< Send CMD9 (CSD register) or CMD10(CSD register) */
-    sd_send_cmd(SD_CMD9, 0, 0);
+    sd_send_cmd(SD_CMD9, 0, 0xAF);
     /*!< Wait for response in the R1 format (0x00 is no errors) */
     uint8_t resp = sd_get_response();
     debug_print("[MaixPy] %s | resp = %x \r\n", __func__, resp);
@@ -323,7 +323,7 @@ static uint8_t sd_get_cidregister(SD_CID *SD_cid)
 {
     uint8_t cid_tab[18];
     /*!< Send CMD10 (CID register) */
-    sd_send_cmd(SD_CMD10, 0, 0);
+    sd_send_cmd(SD_CMD10, 0, 0x1B);
     /*!< Wait for response in the R1 format (0x00 is no errors) */
     if (sd_get_response() != 0x00)
     {
@@ -464,15 +464,15 @@ uint8_t sd_init(void)
     index = 0xFF;
     while (index--)
     {
-        sd_send_cmd(SD_CMD55, 0, 0);
+        sd_send_cmd(SD_CMD55, 0, 0x65);
         result = sd_get_response();
         sd_end_cmd();
-        if (result != 0x01)
+        if (result != 0x01 && result != 0x00)
         {
             debug_print("SD_CMD55 ack %X\r\n", result);
             return 0xFF;
         }
-        sd_send_cmd(SD_ACMD41, 0x40000000, 0);
+        sd_send_cmd(SD_ACMD41, 0x40000000, 0x77);
         result = sd_get_response();
         sd_end_cmd();
         if (result == 0x00)
@@ -483,25 +483,11 @@ uint8_t sd_init(void)
         debug_print("SD_CMD55 is %X\r\n", result);
         return 0xFF;
     }
-    index = 255;
-    while (index--)
-    {
-        sd_send_cmd(SD_CMD58, 0, 1);
-        result = sd_get_response();
-        sd_read_data(frame, 4);
-        sd_end_cmd();
-        debug_print("[MaixPy] %s |  frame[0] = %x \r\n", __func__, frame[0]);
-        debug_print("[MaixPy] %s |  frame[1] = %x \r\n", __func__, frame[1]);
-        debug_print("[MaixPy] %s |  frame[2] = %x \r\n", __func__, frame[2]);
-        debug_print("[MaixPy] %s |  frame[3] = %x \r\n", __func__, frame[3]);
-        debug_print("[MaixPy] %s |  result = %d \r\n", __func__, result);
-        debug_print("[MaixPy] %s |  index = %d \r\n", __func__, index);
-        if (result == 0)
-        {
-            break;
-        }
-    }
-    if (index == 0)
+    sd_send_cmd(SD_CMD58, 0, 0xFD);
+    result = sd_get_response();
+    sd_read_data(frame, 4);
+    sd_end_cmd();
+    if (result != 0x00 && result != 0x01)
     {
         debug_print("[MaixPy] %s | SD_CMD58 is %X\r\n",__func__,result);
         return 0xFF;
@@ -520,7 +506,7 @@ uint8_t sd_init(void)
     }
     if (1 == sd_version)
     {
-        sd_send_cmd(SD_CMD16, 512, 0);
+        sd_send_cmd(SD_CMD16, 512, 0x15);
         if (sd_get_response() != 0x00)
         {
             sd_end_cmd();
@@ -551,7 +537,7 @@ uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
     if (count == 1)
     {
         flag = 0;
-        sd_send_cmd(SD_CMD17, sector, 0);
+        sd_send_cmd(SD_CMD17, sector, 0x55);
     }
     else
     {
@@ -650,7 +636,7 @@ uint8_t sd_read_sector_dma(uint8_t *data_buff, uint32_t sector, uint32_t count)
     if (count == 1)
     {
         flag = 0;
-        sd_send_cmd(SD_CMD17, sector, 0);
+        sd_send_cmd(SD_CMD17, sector, 0x55);
     }
     else
     {
