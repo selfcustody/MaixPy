@@ -542,7 +542,7 @@ uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
     else
     {
         flag = 1;
-        sd_send_cmd(SD_CMD18, sector, 0);
+        sd_send_cmd(SD_CMD18, sector, 0xC9);
     }
     /*!< Check if the SD acknowledged the read block command: R1 response (0x00: no errors) */
     if (sd_get_response() != 0x00)
@@ -564,7 +564,7 @@ uint8_t sd_read_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
     sd_end_cmd();
     if (flag)
     {
-        sd_send_cmd(SD_CMD12, 0, 0);
+        sd_send_cmd(SD_CMD12, 0, 0x61);
         sd_get_response();
         sd_end_cmd();
         sd_end_cmd();
@@ -589,15 +589,15 @@ uint8_t sd_write_sector(uint8_t *data_buff, uint32_t sector, uint32_t count)
     if (count == 1)
     {
         frame[1] = SD_START_DATA_SINGLE_BLOCK_WRITE;
-        sd_send_cmd(SD_CMD24, sector, 0);
+        sd_send_cmd(SD_CMD24, sector, 0xD5);
     }
     else
     {
         frame[1] = SD_START_DATA_MULTIPLE_BLOCK_WRITE;
-        sd_send_cmd(SD_ACMD23, count, 0);
+        sd_send_cmd(SD_ACMD23, count, 0x19);
         sd_get_response();
         sd_end_cmd();
-        sd_send_cmd(SD_CMD25, sector, 0);
+        sd_send_cmd(SD_CMD25, sector, 0xE5);
     }
     /*!< Check if the SD acknowledged the write block command: R1 response (0x00: no errors) */
     if (sd_get_response() != 0x00)
@@ -641,7 +641,7 @@ uint8_t sd_read_sector_dma(uint8_t *data_buff, uint32_t sector, uint32_t count)
     else
     {
         flag = 1;
-        sd_send_cmd(SD_CMD18, sector, 0);
+        sd_send_cmd(SD_CMD18, sector, 0xC9);
     }
     /*!< Check if the SD acknowledged the read block command: R1 response (0x00: no errors) */
     if (sd_get_response() != 0x00)
@@ -664,7 +664,7 @@ uint8_t sd_read_sector_dma(uint8_t *data_buff, uint32_t sector, uint32_t count)
     sd_end_cmd();
     if (flag)
     {
-        sd_send_cmd(SD_CMD12, 0, 0);
+        sd_send_cmd(SD_CMD12, 0, 0x61);
         sd_get_response();
         sd_end_cmd();
         sd_end_cmd();
@@ -687,7 +687,7 @@ uint8_t sd_write_sector_dma(uint8_t *data_buff, uint32_t sector, uint32_t count)
             shift = i << 9;
         else
             shift = i;
-        sd_send_cmd(SD_CMD24, sector + shift, 0);
+        sd_send_cmd(SD_CMD24, sector + shift, 0xD5);
         /*!< Check if the SD acknowledged the write block command: R1 response (0x00: no errors) */
         if (sd_get_response() != 0x00)
         {
