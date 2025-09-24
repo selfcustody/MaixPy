@@ -10,14 +10,6 @@
 #include "utils.h"
 #include <stdio.h>
 
-#define MAIX_SDCARD_DEBUG 0
-#if MAIX_SDCARD_DEBUG == 1
-#include "printf.h"
-#define debug_print(x, arg...) printk(x, ##arg)
-#else
-#define debug_print(x, arg...)
-#endif
-
 /*
  * @brief  Start Data tokens:
  *         Tokens (necessary because at nop/idle (and CS active) only 0xff is
@@ -142,6 +134,7 @@ static void sd_read_data_dma(uint8_t *data_buff) {
  */
 static void sd_send_cmd(uint8_t cmd, uint32_t arg) {
   uint8_t frame[6];
+  uint8_t dummy = 0xFF;
   /*!< Construct byte 1 */
   frame[0] = (cmd | 0x40);
   /*!< Construct byte 2 */
@@ -156,6 +149,8 @@ static void sd_send_cmd(uint8_t cmd, uint32_t arg) {
   frame[5] = sd_calculate_crc7(cmd, arg);
   /*!< SD chip select low */
   SD_CS_LOW();
+  /*!< Send dummy byte for synchronization */
+  sd_write_data(&dummy, 1);
   /*!< Send the Cmd bytes */
   sd_write_data(frame, 6);
 }
@@ -237,14 +232,14 @@ static uint8_t sd_get_csdregister(SD_CSD *SD_csd) {
   sd_send_cmd(SD_CMD9, 0);
   /*!< Wait for response in the R1 format (0x00 is no errors) */
   uint8_t resp = sd_get_response();
-  debug_print("[MaixPy] %s | resp = %x \r\n", __func__, resp);
   if (resp != 0x00) {
+    printk("[MaixPy] %s | != 0x00 resp = %x \r\n", __func__, resp);
     sd_end_cmd();
     return 0xFF;
   }
   resp = sd_get_response();
-  debug_print("[MaixPy] %s | resp = %x \r\n", __func__, resp);
   if (resp != SD_START_DATA_SINGLE_BLOCK_READ) {
+    printk("[MaixPy] %s | != SD_START_DATA_SINGLE_BLOCK_READ resp = %x \r\n", __func__, resp);
     sd_end_cmd();
     return 0xFF;
   }
@@ -334,11 +329,15 @@ static uint8_t sd_get_cidregister(SD_CID *SD_cid) {
   /*!< Send CMD10 (CID register) */
   sd_send_cmd(SD_CMD10, 0);
   /*!< Wait for response in the R1 format (0x00 is no errors) */
-  if (sd_get_response() != 0x00) {
+  uint8_t resp = sd_get_response();
+  if (resp != 0x00) {
+    printk("[MaixPy] %s | sd_get_response() != 0x00 = %x \r\n", __func__, resp);
     sd_end_cmd();
     return 0xFF;
   }
-  if (sd_get_response() != SD_START_DATA_SINGLE_BLOCK_READ) {
+  resp = sd_get_response();
+  if (resp != SD_START_DATA_SINGLE_BLOCK_READ) {
+    printk("[MaixPy] %s | sd_get_response() != SD_START_DATA_SINGLE_BLOCK_READ = %x \r\n", __func__, resp);
     sd_end_cmd();
     return 0xFF;
   }
@@ -394,11 +393,11 @@ static uint8_t sd_get_cidregister(SD_CID *SD_cid) {
  */
 static uint8_t sd_get_cardinfo(SD_CardInfo *cardinfo) {
   if (sd_get_csdregister(&(cardinfo->SD_csd))) {
-    debug_print("[MaixPy] %s | sd_get_csdregister failed\r\n", __func__);
+    printk("[MaixPy] %s | sd_get_csdregister failed\r\n", __func__);
     return 0xFF;
   }
   if (sd_get_cidregister(&(cardinfo->SD_cid))) {
-    debug_print("[MaixPy] %s | sd_get_cidregister failed\r\n", __func__);
+    printk("[MaixPy] %s | sd_get_cidregister failed\r\n", __func__);
     return 0xFF;
   }
   if (2 == sd_version) {
@@ -448,7 +447,7 @@ uint8_t sd_init(void) {
   result = sd_get_response();
   sd_end_cmd();
   if (result != 0x01) {
-    debug_print("[MaixPy] %s | SD_CMD0 is %X\r\n", __func__, result);
+    printk("[MaixPy] %s | SD_CMD0 is %X\r\n", __func__, result);
     return 0xFF;
   }
 
@@ -458,7 +457,7 @@ uint8_t sd_init(void) {
   sd_read_data(frame, 4);
   sd_end_cmd();
   if (result != 0x01) {
-    debug_print("[MaixPy] %s | SD_CMD8 is %X\r\n", __func__, result);
+    printk("[MaixPy] %s | SD_CMD8 is %X\r\n", __func__, result);
     return 0xFF;
   }
   index = 0xFF;
@@ -467,7 +466,7 @@ uint8_t sd_init(void) {
     result = sd_get_response();
     sd_end_cmd();
     if (result != 0x01 && result != 0x00) {
-      debug_print("SD_CMD55 ack %X\r\n", result);
+      printk("SD_CMD55 ack %X\r\n", result);
       return 0xFF;
     }
     sd_send_cmd(SD_ACMD41, 0x40000000);
@@ -477,7 +476,7 @@ uint8_t sd_init(void) {
       break;
   }
   if (index == 0) {
-    debug_print("SD_CMD55 is %X\r\n", result);
+    printk("SD_CMD55 is %X\r\n", result);
     return 0xFF;
   }
   sd_send_cmd(SD_CMD58, 0);
@@ -485,7 +484,7 @@ uint8_t sd_init(void) {
   sd_read_data(frame, 4);
   sd_end_cmd();
   if (result != 0x00 && result != 0x01) {
-    debug_print("[MaixPy] %s | SD_CMD58 is %X\r\n", __func__, result);
+    printk("[MaixPy] %s | SD_CMD58 is %X\r\n", __func__, result);
     return 0xFF;
   }
   if ((frame[0] & 0x40) == 0) {
@@ -621,8 +620,8 @@ uint8_t sd_read_sector_dma(uint8_t *data_buff, uint32_t sector,
   /*!< Check if the SD acknowledged the read block command: R1 response (0x00:
    * no errors) */
   if (sd_get_response() != 0x00) {
+    printk("%s sd_get_response() != 0x00 %d\r\n", __func__, flag);
     sd_end_cmd();
-    debug_print("%s sd_get_response() != 0x00 %d\r\n", __func__, flag);
     return 0xFF;
   }
   while (count) {
