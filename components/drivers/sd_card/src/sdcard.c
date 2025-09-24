@@ -447,7 +447,8 @@ uint8_t sd_init(void) {
   result = sd_get_response();
   sd_end_cmd();
   if (result != 0x01) {
-    printk("[MaixPy] %s | SD_CMD0 is %X\r\n", __func__, result);
+    // Avoid printing this error while navigating and SD is not present
+    // printk("[MaixPy] %s | SD_CMD0 is %X\r\n", __func__, result);
     return 0xFF;
   }
 

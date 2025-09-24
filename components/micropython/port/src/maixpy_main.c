@@ -462,6 +462,7 @@ int core1_function(void *ctx)
 }
 
 volatile bool maixpy_sdcard_loading = true; // There may be deadlocks.
+bool sd_fail_message_shown = false;
 int sd_preload(int core)
 {
   bool mounted = false;
@@ -488,9 +489,10 @@ int sd_preload(int core)
     }
   }
 
-  if (!mounted)
+  if (!mounted && !sd_fail_message_shown)
   {
     printk("[maixpy] mount sdcard failed\r\n");
+    sd_fail_message_shown = true;
   }
 
   maixpy_sdcard_loading = false;
