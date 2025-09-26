@@ -1,0 +1,1 @@
+../../maixpy_amigo/main/CMakeLists.txt

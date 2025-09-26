@@ -1,0 +1,1 @@
+../../maixpy_amigo/compile/compile_flags.cmake
