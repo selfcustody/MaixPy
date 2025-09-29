@@ -28,7 +28,6 @@
 #include "ov3660.h"
 #include "ov5640.h"
 #include "ov5642.h"
-#include "Maix_config.h"
 #include "sensor_device.h"
 
 // AI buffers permanently disabled to save memory
@@ -109,29 +108,6 @@ void _ndelay(uint32_t ns)
         }                                                                                                     \
     }
 
-void sensor_load_config(struct sensor_config_t *sensor_cfg)
-{
-    const char cfg[] = "sensor";
-    mp_obj_t tmp = maix_config_get_value(mp_obj_new_str(cfg, sizeof(cfg) - 1), mp_const_none);
-    if (tmp != mp_const_none && mp_obj_is_type(tmp, &mp_type_dict))
-    {
-        mp_obj_dict_t *self = MP_OBJ_TO_PTR(tmp);
-
-        SENSOR_CHECK_CONFIG(cmos_pclk, &sensor_cfg->cmos_pclk);
-        SENSOR_CHECK_CONFIG(cmos_xclk, &sensor_cfg->cmos_xclk);
-        SENSOR_CHECK_CONFIG(cmos_href, &sensor_cfg->cmos_href);
-        SENSOR_CHECK_CONFIG(cmos_pwdn, &sensor_cfg->cmos_pwdn);
-        SENSOR_CHECK_CONFIG(cmos_vsync, &sensor_cfg->cmos_vsync);
-        SENSOR_CHECK_CONFIG(cmos_rst, &sensor_cfg->cmos_rst);
-
-        SENSOR_CHECK_CONFIG(reg_width, &sensor_cfg->reg_width);
-        SENSOR_CHECK_CONFIG(i2c_num, &sensor_cfg->i2c_num);
-        SENSOR_CHECK_CONFIG(pin_clk, &sensor_cfg->pin_clk);
-        SENSOR_CHECK_CONFIG(pin_sda, &sensor_cfg->pin_sda);
-        SENSOR_CHECK_CONFIG(gpio_clk, &sensor_cfg->gpio_clk);
-        SENSOR_CHECK_CONFIG(gpio_sda, &sensor_cfg->gpio_sda);
-    }
-}
 
 static int sensor_irq(void *ctx)
 {
@@ -510,8 +486,6 @@ int sensor_init_dvp(mp_int_t freq, bool default_freq)
 {
     int init_ret = 0;
     int pwdn_lock = 0;
-
-    sensor_load_config(&sensor_config);
 
     fpioa_set_function(sensor_config.cmos_pclk, FUNC_CMOS_PCLK);
     fpioa_set_function(sensor_config.cmos_xclk, FUNC_CMOS_XCLK);

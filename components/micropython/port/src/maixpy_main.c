@@ -82,7 +82,6 @@
 #include "sipeed_conv.h"
 #include "ide_dbg.h"
 #include "global_config.h"
-#include "Maix_config.h"
 
 /********* others *******/
 #include "boards.h"
@@ -284,85 +283,6 @@ STATIC bool mpy_mount_spiffs(spiffs_user_mount_t *spiffs, mp_vfs_mount_t *vfs)
   return true;
 }
 
-bool save_config_to_spiffs(config_data_t *config)
-{
-#if CONFIG_MAIXPY_USE_MEMZIP
-  // Config is pulled from env vars, so just return
-  return true;
-#else
-  s32_t ret;
-  spiffs_file fd = SPIFFS_open(&spiffs_user_mount_handle.fs, FREQ_STORE_FILE_NAME, SPIFFS_O_WRONLY | SPIFFS_O_CREAT, 0);
-  if (fd <= 0)
-    return false;
-  ret = SPIFFS_write(&spiffs_user_mount_handle.fs, fd, config, sizeof(config_data_t));
-  if (ret <= 0)
-  {
-    SPIFFS_close(&spiffs_user_mount_handle.fs, fd);
-    return false;
-  }
-  SPIFFS_close(&spiffs_user_mount_handle.fs, fd);
-  return true;
-#endif
-}
-
-void load_config_from_spiffs(config_data_t *config)
-{
-#if CONFIG_MAIXPY_USE_MEMZIP
-  // Pull config from env vars, not filesystem
-  config->freq_cpu = FREQ_CPU_DEFAULT;
-  config->freq_pll1 = FREQ_PLL1_DEFAULT;
-  config->kpu_div = 1;
-  config->gc_heap_size = CONFIG_MAIXPY_GC_HEAP_SIZE;
-  config->freq_cpu = config->freq_cpu > FREQ_CPU_MAX ? FREQ_CPU_MAX : config->freq_cpu;
-  config->freq_cpu = config->freq_cpu < FREQ_CPU_MIN ? FREQ_CPU_MIN : config->freq_cpu;
-  config->freq_pll1 = config->freq_pll1 > FREQ_PLL1_MAX ? FREQ_PLL1_MAX : config->freq_pll1;
-  config->freq_pll1 = config->freq_pll1 < FREQ_PLL1_MIN ? FREQ_PLL1_MIN : config->freq_pll1;
-  if (config->kpu_div == 0)
-    config->kpu_div = 1;
-  if (config->gc_heap_size == 0)
-  {
-    config->gc_heap_size = CONFIG_MAIXPY_GC_HEAP_SIZE;
-  }
-#else
-  //s32_t ret, flash_error = 0;
-  //spiffs_file fd = SPIFFS_open(&spiffs_user_mount_handle.fs, FREQ_STORE_FILE_NAME, SPIFFS_O_RDONLY, 0);
-  // config init
-  config->freq_cpu = FREQ_CPU_DEFAULT;
-  config->freq_pll1 = FREQ_PLL1_DEFAULT;
-  config->kpu_div = 1;
-  config->gc_heap_size = CONFIG_MAIXPY_GC_HEAP_SIZE;
-  // if (fd <= 0)
-  // {
-  //   // init data;
-  //   flash_error = save_config_to_spiffs(config);
-  // }
-  // else
-  // {
-  //   // memset(config, 0, sizeof(config_data_t));
-  //   ret = SPIFFS_read(&spiffs_user_mount_handle.fs, fd, config, sizeof(config_data_t));
-  //   if (ret <= 0)
-  //   {
-  //     printk("maixpy can't load freq.conf\t\r\n");
-  //     flash_error = false;
-  //   }
-  //   else
-  //   {
-  //     config->freq_cpu = config->freq_cpu > FREQ_CPU_MAX ? FREQ_CPU_MAX : config->freq_cpu;
-  //     config->freq_cpu = config->freq_cpu < FREQ_CPU_MIN ? FREQ_CPU_MIN : config->freq_cpu;
-  //     config->freq_pll1 = config->freq_pll1 > FREQ_PLL1_MAX ? FREQ_PLL1_MAX : config->freq_pll1;
-  //     config->freq_pll1 = config->freq_pll1 < FREQ_PLL1_MIN ? FREQ_PLL1_MIN : config->freq_pll1;
-  //     if (config->kpu_div == 0)
-  //       config->kpu_div = 1;
-  //     if (config->gc_heap_size == 0)
-  //     {
-  //     config->gc_heap_size = CONFIG_MAIXPY_GC_HEAP_SIZE;
-  //     }
-  //   }
-  // }
-  // SPIFFS_close(&spiffs_user_mount_handle.fs, fd);
-#endif
-}
-
 #if MICROPY_ENABLE_COMPILER
 void pyexec_str(vstr_t *str)
 {
@@ -416,25 +336,6 @@ void pyexec_str(vstr_t *str)
     }                                                                                                     \
   }
 
-void sd_preinit_config()
-{
-  extern sdcard_config_t config;
-  // printk("[%d:%s]\r\n", __LINE__, __FUNCTION__);
-
-  const char cfg[] = "sdcard";
-  mp_obj_t tmp = maix_config_get_value(mp_obj_new_str(cfg, sizeof(cfg) - 1), mp_const_none);
-  if (tmp != mp_const_none && mp_obj_is_type(tmp, &mp_type_dict))
-  {
-    mp_obj_dict_t *self = MP_OBJ_TO_PTR(tmp);
-
-    SDCARD_CHECK_CONFIG(sclk, &config.sclk_pin);
-    SDCARD_CHECK_CONFIG(mosi, &config.mosi_pin);
-    SDCARD_CHECK_CONFIG(miso, &config.miso_pin);
-    SDCARD_CHECK_CONFIG(cs, &config.cs_pin);
-    SDCARD_CHECK_CONFIG(cs_gpio, &config.cs_gpio_num);
-  }
-}
-
 typedef int (*dual_func_t)(int);
 corelock_t lock;
 volatile dual_func_t dual_func = 0;
@@ -466,7 +367,6 @@ bool sd_fail_message_shown = false;
 int sd_preload(int core)
 {
   bool mounted = false;
-  sd_preinit_config();
   if (0 == sd_init())
   {
     bool sd_state = sdcard_is_present();
@@ -517,12 +417,11 @@ void mp_task(void *pvParameter)
 #endif
   config_data_t *config = (config_data_t *)pvParameter;
 #if MICROPY_ENABLE_GC
-  void *gc_heap = malloc(config->gc_heap_size);
+  void *gc_heap = malloc(CONFIG_MAIXPY_GC_HEAP_SIZE);
   if (!gc_heap)
   {
-    printk("GC heap size %d is too large, reset GC heap size\r\n", config->gc_heap_size);
-    config->gc_heap_size = 128 * 1024;
-    gc_heap = malloc(config->gc_heap_size); // 128KiB
+    printk("GC heap size %d is too large, reset GC heap size\r\n", CONFIG_MAIXPY_GC_HEAP_SIZE);
+    gc_heap = malloc(128 * 1024); // 128KiB
     if (!gc_heap)
     {
       printk("can't malloc 128k, check firmware size\r\n");
@@ -547,8 +446,8 @@ soft_reset:
   mp_stack_set_limit(32768); // stack size 32k set in ld
 #endif
 #if MICROPY_ENABLE_GC
-  gc_init(gc_heap, gc_heap + config->gc_heap_size);
-  printk("[MaixPy] gc heap=%p-%p(%d)\r\n", gc_heap, gc_heap + config->gc_heap_size, config->gc_heap_size);
+  gc_init(gc_heap, gc_heap + CONFIG_MAIXPY_GC_HEAP_SIZE);
+  printk("[MaixPy] gc heap=%p-%p(%d)\r\n", gc_heap, gc_heap + CONFIG_MAIXPY_GC_HEAP_SIZE, CONFIG_MAIXPY_GC_HEAP_SIZE);
 #endif
   mp_init();
   mp_obj_list_init(mp_sys_path, 0);
@@ -598,10 +497,6 @@ soft_reset:
   main_vfs = m_new_obj(mp_vfs_mount_t);
   bool mounted_flash = false;
   mounted_flash = mpy_mount_spiffs(&spiffs_user_mount_handle, main_vfs); //init spiffs of flash
-  if (mounted_flash)
-  // {  // Uncomment to enable load config from /flash/config.json
-  //   maix_config_init();
-  // }
   mount_sdcard();
   // mp_printf(&mp_plat_print, "[MaixPy] init end\r\n"); // for maixpy ide
   // run boot-up scripts
@@ -708,9 +603,8 @@ int maixpy_main()
   uarths_config(115200, 1);
   flash_init(&manuf_id, &device_id);
   init_flash_spiffs();
-  load_config_from_spiffs(&config);
-  sysctl_cpu_set_freq(config.freq_cpu);
-  sysctl_pll_set_freq(SYSCTL_PLL1, config.freq_pll1);
+  sysctl_cpu_set_freq(FREQ_CPU_DEFAULT);
+  sysctl_pll_set_freq(SYSCTL_PLL1, FREQ_PLL1_DEFAULT);
   sysctl_clock_set_threshold(SYSCTL_THRESHOLD_AI, 15);
   dmac_init();
   plic_init();

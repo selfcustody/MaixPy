@@ -46,8 +46,5 @@ typedef struct{
     uint32_t gc_heap_size;
 } config_data_t;
 
-void load_config_from_spiffs(config_data_t* config);
-bool save_config_to_spiffs(config_data_t* config);
-
 
 #endif//__MPCONFIGBOARD_MAIX_H

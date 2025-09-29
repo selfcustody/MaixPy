@@ -31,5 +31,4 @@ extern const mp_obj_type_t Maix_fft_type;
 #endif
 extern const mp_obj_type_t cpufreq_type;
 extern const mp_obj_type_t Maix_utils_type;
-extern const mp_obj_type_t Maix_config_type;
 #endif // MICROPY_INCLUDED_MAIX_MAIX_H
