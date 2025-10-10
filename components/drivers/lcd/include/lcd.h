@@ -18,8 +18,9 @@
 #include "spi.h"
 
 
-#define DCX_GPIONUM             31// FUNC_GPIOHS31
+#define DCX_GPIONUM             31 // FUNC_GPIOHS31
 #define RST_GPIONUM             30 // FUNC_GPIOHS30
+#define RD_GPIONUM              28 // FUNC_GPIOHS28
 
 #define SPI_CHANNEL             SPI_DEVICE_0
 #define SPI_DMA_CH				DMAC_CHANNEL2
@@ -84,6 +85,7 @@ typedef enum
 	LCD_TYPE_5P0_7P0,
 	LCD_TYPE_5P0_IPS,
 	LCD_TYPE_480_272_4P3,
+    LCD_TYPE_ST7789V,
 }lcd_type_t;
 
 typedef enum _lcd_dir

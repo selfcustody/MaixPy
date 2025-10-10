@@ -192,6 +192,119 @@ static void lcd_init_sequence_for_ili9486(void)
 
 }
 
+static void lcd_init_sequence_for_st7789v(void)
+{
+    uint8_t t[15];
+    tft_write_command(0X11); /* Unk */
+    msleep(120);
+    tft_write_command(0x2a); /* Unk */
+    t[0] = (0x00);
+    t[1] = (0x00);
+    t[2] = (0x00);
+    t[3] = (0xef);
+    tft_write_byte(t, 4);
+
+    tft_write_command(0x2b); /* Unk */
+    t[0] = (0x00);
+    t[1] = (0x28);
+    t[2] = (0x01);
+    t[3] = (0x17);
+    tft_write_byte(t, 4);
+
+    tft_write_command(0xb2); /* Unk */
+    t[0] = (0x0c);
+    t[1] = (0x0c);
+    t[2] = (0x00);
+    t[3] = (0x33);
+    t[4] = (0x33);
+    tft_write_byte(t, 5);
+
+    tft_write_command(0x21); /* Unk */
+
+    tft_write_command(0xb7); /* Unk */
+    t[0] = (0x56);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0xbb); /* Unk */
+    t[0] = (0x18);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0xc0); /* Unk */
+    t[0] = (0x2c);
+    tft_write_byte(t, 1);
+  
+    tft_write_command(0xc2); /* Unk */
+    t[0] = (0x01);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0xc3); /* Unk */
+    t[0] = (0x1f);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0xc4); /* Unk */
+    t[0] = (0x20);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0xc6); /* Unk */
+    t[0] = (0x0f);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0xd0); /* Unk */
+    t[0] = (0xa6);
+    t[1] = (0xa1);
+    tft_write_byte(t, 2);
+
+    tft_write_command(0xe0); /* Unk */
+    t[0] = (0xd0);
+    t[1] = (0x0d);
+    t[2] = (0x14);
+    t[3] = (0x0b);
+    t[4] = (0x0b);
+    t[5] = (0x07);
+    t[6] = (0x3a);
+    t[7] = (0x44);
+    t[8] = (0x50);
+    t[9] = (0x08);
+    t[10] = (0x13);
+    t[11] = (0x13);
+    t[12] = (0x2d);
+    t[13] = (0x32);
+    tft_write_byte(t, 14);
+
+    tft_write_command(0xe1); /* Unk */
+    t[0] = (0xd0);
+    t[1] = (0x0d);
+    t[2] = (0x14);
+    t[3] = (0x0b);
+    t[4] = (0x0b);
+    t[5] = (0x07);
+    t[6] = (0x3a);
+    t[7] = (0x44);
+    t[8] = (0x50);
+    t[9] = (0x08);
+    t[10] = (0x13);
+    t[11] = (0x13);
+    t[12] = (0x2d);
+    t[13] = (0x32);
+    tft_write_byte(t, 14);
+
+    tft_write_command(0x36); /* Unk */
+    t[0] = (0x00);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0x3a); /* Unk */
+    t[1] = (0x55);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0xe7); /* Unk */
+    t[0] = (0x10);
+    tft_write_byte(t, 1);
+
+    tft_write_command(0x21); /* Unk */
+    tft_write_command(0x29); /* Unk */
+    tft_write_command(0x2C); /* Unk */
+}
+
 #include "syslog.h"
 
 static int mcu_lcd_init(lcd_para_t *lcd_para)
@@ -258,11 +371,15 @@ static int mcu_lcd_init_shield(lcd_para_t *lcd_para){
     {
         lcd_preinit_register_handler(&lcd_init_sequence_for_ili9486);
     }
-    mcu_lcd_init(lcd_para);
-    if (lcd_para->lcd_type == LCD_TYPE_ILI9481)
+    else if (lcd_para->lcd_type == LCD_TYPE_ILI9481)
     {
         lcd_preinit_register_handler(&lcd_init_sequence_for_ili9481);
     }
+    else if (lcd_para->lcd_type == LCD_TYPE_ST7789V)
+    {
+        lcd_preinit_register_handler(&lcd_init_sequence_for_st7789v);
+    }
+    mcu_lcd_init(lcd_para);
     if (0 != lcd_para->dir)
     {
         mcu_lcd_set_direction(lcd_para->dir);

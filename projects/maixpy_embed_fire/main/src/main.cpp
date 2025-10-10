@@ -5,7 +5,7 @@ extern sdcard_config_t config;
 
 int main()
 {
-    sdcard_config_t fire = { 7, 9, 8, 6, 28};
+    sdcard_config_t fire = { 7, 9, 8, 6, SD_CS_PIN};
     config = fire;
     maixpy_main();
     return 0;
