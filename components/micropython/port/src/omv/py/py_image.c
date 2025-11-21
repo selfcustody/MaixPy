@@ -4621,7 +4621,12 @@ static mp_obj_t py_image_find_qrcodes(size_t n_args, const mp_obj_t *args, mp_ma
         o->y = mp_obj_new_int(lnk_data.rect.y);
         o->w = mp_obj_new_int(lnk_data.rect.w);
         o->h = mp_obj_new_int(lnk_data.rect.h);
-        o->payload = mp_obj_new_str(lnk_data.payload, lnk_data.payload_len);
+        // Use bytes for binary data type (4) to preserve data integrity
+        if (lnk_data.data_type == 4) {
+            o->payload = mp_obj_new_bytes(lnk_data.payload, lnk_data.payload_len);
+        } else {
+            o->payload = mp_obj_new_str(lnk_data.payload, lnk_data.payload_len);
+        }
         o->version = mp_obj_new_int(lnk_data.version);
         o->ecc_level = mp_obj_new_int(lnk_data.ecc_level);
         o->mask = mp_obj_new_int(lnk_data.mask);
