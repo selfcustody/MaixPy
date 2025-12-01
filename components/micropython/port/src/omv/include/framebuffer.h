@@ -26,6 +26,8 @@ typedef struct framebuffer {
 #else
     uint8_t* pixels;
 #endif
+    // Grayscale buffer for direct Y component extraction from YUV422
+    uint8_t* grayscale;
 } __attribute__((aligned(8))) framebuffer_t;
 
 typedef struct jpegbuffer {

@@ -206,6 +206,9 @@ void sensor_init_fb()
         free(MAIN_FB()->pixels);
     MAIN_FB()->pixels = NULL;
 #endif
+    if (MAIN_FB()->grayscale)
+        free(MAIN_FB()->grayscale);
+    MAIN_FB()->grayscale = NULL;
 }
 
 void sensor_init0()
@@ -645,6 +648,9 @@ void sensor_deinit()
         free(MAIN_FB()->pixels);
     MAIN_FB()->pixels = NULL;
 #endif
+    if (MAIN_FB()->grayscale)
+        free(MAIN_FB()->grayscale);
+    MAIN_FB()->grayscale = NULL;
     MAIN_FB()->w = 0;
     MAIN_FB()->h = 0;
     MAIN_FB()->w_max = 0;
@@ -807,6 +813,12 @@ int sensor_set_framesize(framesize_t framesize, bool set_regs)
         if (!MAIN_FB()->pixels)
             return ENOMEM;
 #endif
+        // Allocate grayscale buffer for direct Y component extraction
+        if (MAIN_FB()->grayscale)
+            free(MAIN_FB()->grayscale);
+        MAIN_FB()->grayscale = (uint8_t *)malloc(MAIN_FB()->w * MAIN_FB()->h);
+        if (!MAIN_FB()->grayscale)
+            return ENOMEM;
     }
     if (sensor.reset_set)
     {
@@ -1319,6 +1331,26 @@ int sensor_snapshot(sensor_t *sensor, image_t *image, streaming_cb_t streaming_c
         //t0=read_cycle();
         //exchang_data_byte((image->pixels), (MAIN_FB()->w)*(MAIN_FB()->h)*2);
         //exchang_pixel((image->pixels), (MAIN_FB()->w)*(MAIN_FB()->h)); //cost 3ms@400M
+
+        // Extract Y component from YUV422 for RGB565 mode (before pixel reversal)
+        // This provides a zero-copy grayscale buffer for QR detection
+        if (sensor->pixformat == PIXFORMAT_RGB565 && MAIN_FB()->grayscale) {
+            uint8_t *yuv_data = (uint8_t *)(image->pixels);
+            uint8_t *gray_out = MAIN_FB()->grayscale;
+            int pixel_count = (MAIN_FB()->w) * (MAIN_FB()->h);
+            uint8_t *yuv_ptr = yuv_data + 1;  // UYVY format: start at Y0
+            uint8_t *gray_ptr = gray_out;
+            uint8_t *gray_end = gray_out + pixel_count;
+
+            // Extract Y components (luminance) from YUV422
+            // YUV422 UYVY format: [U0 Y0 V0 Y1] [U1 Y2 V1 Y3] ...
+            // We extract: Y1, Y0, Y3, Y2, ... (swapped to match final pixel order)
+            while (gray_ptr < gray_end) {
+                *gray_ptr++ = yuv_ptr[2];  // Y1
+                *gray_ptr++ = *yuv_ptr;     // Y0
+                yuv_ptr += 4;
+            }
+        }
 
         if (sensor->pixformat == PIXFORMAT_GRAYSCALE) {
             uint8_t *yuv_data = (uint8_t *)(image->pixels);
