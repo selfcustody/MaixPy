@@ -226,6 +226,7 @@ typedef uint16_t quirc_pixel_t;
 static quirc_pixel_t *g_threshold_pixels = NULL;
 static uint32_t g_threshold_size = 0;
 static uint8_t g_threshold_value = 0;
+static bool g_threshold_inverted = false;
 
 // Global variables for dual-core RGB565 conversion
 static uint8_t *g_gray_dst = NULL;
@@ -1003,10 +1004,18 @@ static uint8_t otsu_threshold(uint16_t *histogram, uint32_t total) {
 static int threshold_core1(int core)
 {
     quirc_pixel_t *pend = g_threshold_pixels + g_threshold_size;
-    for (; g_threshold_pixels < pend; g_threshold_pixels++) {
-        *g_threshold_pixels = (*g_threshold_pixels < g_threshold_value)
-                            ? QUIRC_PIXEL_BLACK
-                            : QUIRC_PIXEL_WHITE;
+    if (g_threshold_inverted) {
+        for (; g_threshold_pixels < pend; g_threshold_pixels++) {
+            *g_threshold_pixels = (*g_threshold_pixels > g_threshold_value)
+                                ? QUIRC_PIXEL_BLACK
+                                : QUIRC_PIXEL_WHITE;
+        }
+    } else {
+        for (; g_threshold_pixels < pend; g_threshold_pixels++) {
+            *g_threshold_pixels = (*g_threshold_pixels < g_threshold_value)
+                                ? QUIRC_PIXEL_BLACK
+                                : QUIRC_PIXEL_WHITE;
+        }
     }
     return 0;
 }
@@ -1083,10 +1092,18 @@ static void threshold(struct quirc *q)
         dual_func = threshold_core1;
 
         // Core 0 processes first half
-        for (uint32_t i = 0; i < g_threshold_size; i++) {
-            row[i] = (row[i] < o_threshold)
-                        ? QUIRC_PIXEL_BLACK
-                        : QUIRC_PIXEL_WHITE;
+        if (g_threshold_inverted) {
+            for (uint32_t i = 0; i < g_threshold_size; i++) {
+                row[i] = (row[i] > o_threshold)
+                            ? QUIRC_PIXEL_BLACK
+                            : QUIRC_PIXEL_WHITE;
+            }
+        } else {
+            for (uint32_t i = 0; i < g_threshold_size; i++) {
+                row[i] = (row[i] < o_threshold)
+                            ? QUIRC_PIXEL_BLACK
+                            : QUIRC_PIXEL_WHITE;
+            }
         }
 
         // Wait for core 1 to complete
@@ -3107,11 +3124,39 @@ void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi)
     quirc_end(controller);
     list_init(out, sizeof(find_qrcodes_list_lnk_data_t));
 
-    // Early exit if no QR codes detected
+    // Check if any QR codes were detected
     int num_codes = quirc_count(controller);
     if (num_codes == 0) {
-        quirc_destroy(controller);
-        return;
+        // Try inverted QR code detection (white QR on black background)
+        // The image buffer still contains the original grayscale data,
+        // so we can re-threshold with inverted logic (darker = white, lighter = black)
+
+        // Reset detection state to prepare for retry
+        controller->num_regions = QUIRC_PIXEL_REGION;
+        controller->num_capstones = 0;
+        controller->num_grids = 0;
+
+        // Restore pixels buffer from grayscale image and apply inverted threshold
+        pixels_setup(controller);
+        g_threshold_inverted = true;
+        threshold(controller);
+        g_threshold_inverted = false;
+
+        // Re-run QR code detection on inverted pixels
+        for (int i = 0; i < controller->h; i++) {
+            finder_scan(controller, i);
+        }
+        for (int i = 0; i < controller->num_capstones; i++) {
+            test_grouping(controller, i);
+        }
+
+        // Check if inverted detection found any codes
+        num_codes = quirc_count(controller);
+
+        if (num_codes == 0) {
+            quirc_destroy(controller);
+            return;
+        }
     }
 
     // Offset jitters(noise) were empirically determined
