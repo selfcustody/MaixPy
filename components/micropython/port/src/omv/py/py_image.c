@@ -4600,9 +4600,11 @@ static mp_obj_t py_image_find_qrcodes(size_t n_args, const mp_obj_t *args, mp_ma
     rectangle_t roi;
     py_helper_keyword_rectangle_roi(arg_img, n_args, args, 1, kw_args, &roi);
 
+    bool find_inverted = py_helper_keyword_int(n_args, args, 2, kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_find_inverted), false);
+
     list_t out;
     fb_alloc_mark();
-    imlib_find_qrcodes(&out, arg_img, &roi);
+    imlib_find_qrcodes(&out, arg_img, &roi, find_inverted);
     fb_alloc_free_till_mark();
 
     mp_obj_list_t *objects_list = mp_obj_new_list(list_size(&out), NULL);

@@ -3054,7 +3054,7 @@ const char *quirc_strerror(quirc_decode_error_t err)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi)
+void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi, bool find_inverted)
 {
     struct quirc *controller = quirc_new();
     quirc_resize(controller, roi->w, roi->h);
@@ -3127,31 +3127,34 @@ void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi)
     // Check if any QR codes were detected
     int num_codes = quirc_count(controller);
     if (num_codes == 0) {
-        // Try inverted QR code detection (white QR on black background)
-        // The image buffer still contains the original grayscale data,
-        // so we can re-threshold with inverted logic (darker = white, lighter = black)
+        // Try inverted QR code detection only if find_inverted is enabled
+        if (find_inverted) {
+            // Try inverted QR code detection (white QR on black background)
+            // The image buffer still contains the original grayscale data,
+            // so we can re-threshold with inverted logic (darker = white, lighter = black)
 
-        // Reset detection state to prepare for retry
-        controller->num_regions = QUIRC_PIXEL_REGION;
-        controller->num_capstones = 0;
-        controller->num_grids = 0;
+            // Reset detection state to prepare for retry
+            controller->num_regions = QUIRC_PIXEL_REGION;
+            controller->num_capstones = 0;
+            controller->num_grids = 0;
 
-        // Restore pixels buffer from grayscale image and apply inverted threshold
-        pixels_setup(controller);
-        g_threshold_inverted = true;
-        threshold(controller);
-        g_threshold_inverted = false;
+            // Restore pixels buffer from grayscale image and apply inverted threshold
+            pixels_setup(controller);
+            g_threshold_inverted = true;
+            threshold(controller);
+            g_threshold_inverted = false;
 
-        // Re-run QR code detection on inverted pixels
-        for (int i = 0; i < controller->h; i++) {
-            finder_scan(controller, i);
+            // Re-run QR code detection on inverted pixels
+            for (int i = 0; i < controller->h; i++) {
+                finder_scan(controller, i);
+            }
+            for (int i = 0; i < controller->num_capstones; i++) {
+                test_grouping(controller, i);
+            }
+
+            // Check if inverted detection found any codes
+            num_codes = quirc_count(controller);
         }
-        for (int i = 0; i < controller->num_capstones; i++) {
-            test_grouping(controller, i);
-        }
-
-        // Check if inverted detection found any codes
-        num_codes = quirc_count(controller);
 
         if (num_codes == 0) {
             quirc_destroy(controller);
