@@ -21,17 +21,6 @@
 
 extern sensor_t sensor;
 
-static mp_obj_t py_binocular_sensor_reset(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
-{
-    mp_map_elem_t *kw_arg = mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_freq), MP_MAP_LOOKUP);
-    mp_int_t freq = OMV_XCLK_FREQUENCY;
-    if (kw_arg)
-    {
-        freq = mp_obj_get_int(kw_arg->value);
-    }
-    PY_ASSERT_FALSE_MSG(binocular_sensor_reset(freq) != 0, "Reset Failed");
-    return mp_const_none;
-}
 
 static mp_obj_t py_sensor_reset(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
 {
@@ -135,15 +124,13 @@ static mp_obj_t py_sensor_skip_frames(size_t n_args, const mp_obj_t *args, mp_ma
         .w = MAIN_FB()->w,
         .h = MAIN_FB()->h,
         .bpp = MAIN_FB()->bpp,
-        .pixels = MAIN_FB()->pixels[0],
-        .pix_ai = MAIN_FB()->pix_ai[0]};
+        .pixels = MAIN_FB()->pixels[0]};
 #else
     image_t image = {
         .w = MAIN_FB()->w,
         .h = MAIN_FB()->h,
         .bpp = MAIN_FB()->bpp,
-        .pixels = MAIN_FB()->pixels,
-        .pix_ai = MAIN_FB()->pix_ai};
+        .pixels = MAIN_FB()->pixels};
 #endif
     uint32_t millis = systick_current_millis();
     if (!n_args)
@@ -196,8 +183,7 @@ static mp_obj_t py_sensor_get_fb()
         .w = MAIN_FB()->w,
         .h = MAIN_FB()->h,
         .bpp = MAIN_FB()->bpp,
-        .pixels = MAIN_FB()->pixels,
-        .pix_ai = MAIN_FB()->pix_ai};
+        .pixels = MAIN_FB()->pixels};
 
     return py_image_from_struct(&image);
 }
@@ -600,7 +586,6 @@ static mp_obj_t py_sensor_set_jpeg_buff_quality(mp_obj_t quality)
 //            sensor.id.MIDH, sensor.id.MIDL, sensor.id.PID, sensor.id.VER);
 //}
 
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_binocular_sensor_reset_obj, 0, py_binocular_sensor_reset);
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(py_sensor_reset_obj, 0, py_sensor_reset);
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(py_sensor_deinit_obj, py_sensor_deinit);
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(py_sensor_sleep_obj, py_sensor_sleep);
@@ -692,7 +677,6 @@ STATIC const mp_map_elem_t globals_dict_table[] = {
 
     // Sensor functions
 
-    {MP_OBJ_NEW_QSTR(MP_QSTR_binocular_reset),      (mp_obj_t)&py_binocular_sensor_reset_obj},
     {MP_OBJ_NEW_QSTR(MP_QSTR_reset),                (mp_obj_t)&py_sensor_reset_obj},
     {MP_OBJ_NEW_QSTR(MP_QSTR_deinit),               (mp_obj_t)&py_sensor_deinit_obj},
     {MP_OBJ_NEW_QSTR(MP_QSTR_sleep),                (mp_obj_t)&py_sensor_sleep_obj},

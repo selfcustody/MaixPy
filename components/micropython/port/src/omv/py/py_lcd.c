@@ -21,7 +21,7 @@
 #include "sysctl.h"
 #include "global_config.h"
 #include "boards.h"
-#include "Maix_config.h"
+#include "gpiohs.h"
 
 static uint16_t width_curr = 0;
 static uint16_t height_curr = 0;
@@ -31,7 +31,8 @@ static enum {
     DEV_CUBE_IPS_240x240,
     DEV_M5STICK,
     DEV_TWATCH,
-    DEV_CONVERTER
+    DEV_CONVERTER,
+    DEV_EMBED_FIRE,
 } type = DEV_NONE; // device type
 
 static uint8_t rotation = 0;
@@ -57,6 +58,15 @@ lcd_para_t lcd_para = {
 ////////////// mcu lcd debug //////////////
 extern void tft_write_byte(uint8_t *data_buf, uint32_t length);
 extern void tft_write_command(uint8_t cmd);
+
+////////////// Helper functions //////////////
+static inline void setup_lcd_gpio_standard(void)
+{
+    fpioa_set_function(lcd_para.rst_pin, FUNC_GPIOHS0 + RST_GPIONUM);
+    fpioa_set_function(lcd_para.dcx_pin, FUNC_GPIOHS0 + DCX_GPIONUM);
+    fpioa_set_function(lcd_para.cs_pin, FUNC_SPI0_SS0 + LCD_SPI_SLAVE_SELECT);
+    fpioa_set_function(lcd_para.clk_pin, FUNC_SPI0_SCLK);
+}
 static mp_obj_t py_lcd_write_register(mp_obj_t addr_obj, mp_obj_t data_obj)
 {
     if(type == DEV_CONVERTER){
@@ -94,6 +104,7 @@ static mp_obj_t py_lcd_deinit()
     case DEV_TWATCH:
     case DEV_CUBE_IPS_240x240:
     case DEV_CONVERTER:
+    case DEV_EMBED_FIRE:
         lcd->deinit();
         width_curr = 0;
         height_curr = 0;
@@ -114,37 +125,6 @@ static mp_obj_t py_lcd_deinit()
         }                                                                                                     \
     }
 
-void py_lcd_load_config(lcd_para_t *lcd_cfg)
-{
-    const char cfg[] = "lcd";
-    mp_obj_t tmp = maix_config_get_value(mp_obj_new_str(cfg, sizeof(cfg) - 1), mp_const_none);
-    // mp_obj_print_helper(&mp_plat_print, tmp, PRINT_STR);
-    // mp_print_str(&mp_plat_print, "\r\n");
-    if (tmp != mp_const_none && mp_obj_is_type(tmp, &mp_type_dict))
-    {
-        mp_obj_dict_t *self = MP_OBJ_TO_PTR(tmp);
-
-        PY_LCD_CHECK_CONFIG(rst, &lcd_cfg->rst_pin);
-        PY_LCD_CHECK_CONFIG(dcx, &lcd_cfg->dcx_pin);
-        PY_LCD_CHECK_CONFIG(ss, &lcd_cfg->cs_pin);
-        PY_LCD_CHECK_CONFIG(clk, &lcd_cfg->clk_pin);
-
-        PY_LCD_CHECK_CONFIG(height, &lcd_cfg->height);
-        PY_LCD_CHECK_CONFIG(width, &lcd_cfg->width);
-        PY_LCD_CHECK_CONFIG(invert, &lcd_cfg->invert);
-        PY_LCD_CHECK_CONFIG(offset_w0, &lcd_cfg->offset_w0);
-        PY_LCD_CHECK_CONFIG(offset_h0, &lcd_cfg->offset_h0);
-        PY_LCD_CHECK_CONFIG(offset_w1, &lcd_cfg->offset_w1);
-        PY_LCD_CHECK_CONFIG(offset_h1, &lcd_cfg->offset_h1);
-        PY_LCD_CHECK_CONFIG(dir, &lcd_cfg->dir);
-        PY_LCD_CHECK_CONFIG(lcd_type, &lcd_cfg->lcd_type);
-        PY_LCD_CHECK_CONFIG(oct, &lcd_cfg->oct);
-
-        // mp_printf(&mp_plat_print, "[%s]: rst=%d, dcx=%d, ss=%d, clk=%d\r\n",
-        //           __func__, lcd_cfg->rst_pin, lcd_cfg->dcx_pin, lcd_cfg->cs_pin, lcd_cfg->clk_pin);
-
-    }
-}
 
 static mp_obj_t py_lcd_init(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args)
 {
@@ -229,18 +209,7 @@ static mp_obj_t py_lcd_init(size_t n_args, const mp_obj_t *pos_args, mp_map_t *k
         case DEV_NONE:
             return mp_const_none;
         case DEV_SHIELD:
-            py_lcd_load_config(&lcd_para);
-
-            fpioa_set_function(lcd_para.rst_pin, FUNC_GPIOHS0 + RST_GPIONUM);
-            fpioa_set_function(lcd_para.dcx_pin, FUNC_GPIOHS0 + DCX_GPIONUM);
-            fpioa_set_function(lcd_para.cs_pin, FUNC_SPI0_SS0 + LCD_SPI_SLAVE_SELECT);
-            fpioa_set_function(lcd_para.clk_pin, FUNC_SPI0_SCLK);
-
-            // mp_printf(&mp_plat_print, "[%d]: lcd_para.offset_x1=%d, offset_y1=%d, offset_x2=%d, offset_y2=%d,
-            //     width_curr=%d, height_curr=%d, invert=%d, lcd_type=%d\r\n", __LINE__,
-            //     lcd_para.offset_h0, lcd_para.offset_h1, lcd_para.offset_w0, lcd_para.offset_w1,
-            //     width_curr, height_curr, invert, lcd_para.lcd_type);
-
+            setup_lcd_gpio_standard();
             lcd = &lcd_mcu;
             break;
         case DEV_M5STICK:
@@ -269,11 +238,7 @@ static mp_obj_t py_lcd_init(size_t n_args, const mp_obj_t *pos_args, mp_map_t *k
             lcd_para.invert = true;
             lcd_para.dir = 0;
 
-            fpioa_set_function(lcd_para.rst_pin, FUNC_GPIOHS0 + RST_GPIONUM);
-            fpioa_set_function(lcd_para.dcx_pin, FUNC_GPIOHS0 + DCX_GPIONUM);
-            fpioa_set_function(lcd_para.cs_pin, FUNC_SPI0_SS0 + LCD_SPI_SLAVE_SELECT);
-            fpioa_set_function(lcd_para.clk_pin, FUNC_SPI0_SCLK);
-
+            setup_lcd_gpio_standard();
             lcd = &lcd_mcu;
             break;
         case DEV_CUBE_IPS_240x240:
@@ -296,26 +261,24 @@ static mp_obj_t py_lcd_init(size_t n_args, const mp_obj_t *pos_args, mp_map_t *k
             if (args[ARG_offset_h1].u_int == -1)
                 lcd_para.offset_h1 = 0;
 
-            fpioa_set_function(lcd_para.rst_pin, FUNC_GPIOHS0 + RST_GPIONUM);
-            fpioa_set_function(lcd_para.dcx_pin, FUNC_GPIOHS0 + DCX_GPIONUM);
-            fpioa_set_function(lcd_para.cs_pin, FUNC_SPI0_SS0 + LCD_SPI_SLAVE_SELECT);
-            fpioa_set_function(lcd_para.clk_pin, FUNC_SPI0_SCLK);
-
+            setup_lcd_gpio_standard();
             lcd = &lcd_mcu;
             break;
         case DEV_CONVERTER:
-            py_lcd_load_config(&lcd_para);
-
-            fpioa_set_function(lcd_para.rst_pin, FUNC_GPIOHS0 + RST_GPIONUM);
-            fpioa_set_function(lcd_para.dcx_pin, FUNC_GPIOHS0 + DCX_GPIONUM);
-            fpioa_set_function(lcd_para.cs_pin, FUNC_SPI0_SS0 + LCD_SPI_SLAVE_SELECT);
-            fpioa_set_function(lcd_para.clk_pin, FUNC_SPI0_SCLK);
-
-            // mp_printf(&mp_plat_print, "DEV_CONVERTER, type: %d rst: %d, %d, %d, %d\n",lcd_para.lcd_type, lcd_para.rst_pin,
-            // lcd_para.dcx_pin,lcd_para.cs_pin, lcd_para.clk_pin);
-
+            setup_lcd_gpio_standard();
             lcd = &lcd_rgb;
             break;
+
+        case DEV_EMBED_FIRE:
+            setup_lcd_gpio_standard();
+
+            fpioa_set_function(30, FUNC_GPIOHS0 + RD_GPIONUM);
+            gpiohs_set_drive_mode(RD_GPIONUM, GPIO_DM_OUTPUT);
+            gpiohs_set_pin(RD_GPIONUM, GPIO_PV_HIGH);
+
+            lcd = &lcd_mcu;
+            break;
+
         default:
             mp_raise_ValueError("type error");
             break;
@@ -441,6 +404,7 @@ static mp_obj_t py_lcd_display(size_t n_args, const mp_obj_t *args, mp_map_t *kw
     case DEV_TWATCH:
     case DEV_CUBE_IPS_240x240:
     case DEV_CONVERTER:
+    case DEV_EMBED_FIRE:
         //fill pad
         if (oft.x < 0 || oft.y < 0)
         {
@@ -507,6 +471,7 @@ static mp_obj_t py_lcd_clear(size_t n_args, const mp_obj_t *pos_args, mp_map_t *
     case DEV_TWATCH:
     case DEV_CUBE_IPS_240x240:
     case DEV_CONVERTER:
+    case DEV_EMBED_FIRE:
         lcd->clear(color);
         return mp_const_none;
     }

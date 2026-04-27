@@ -144,6 +144,6 @@ CONFIG_SPIFFS_META_LENGTH=0
 # end of Debug Configuration
 # end of SPIFFS Configuration
 
-CONFIG_COMPONENT_UTILS_ENABLE=y
+CONFIG_COMPONENT_UTILS_ENABLE=n
 CONFIG_COMPONENT_LIB_SIPEED_KPU_SRC_ENABLE=n
 # end of Components configuration

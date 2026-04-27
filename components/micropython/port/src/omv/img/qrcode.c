@@ -10,7 +10,12 @@
  * QR-code recognition library.
  */
 #include "imlib.h"
+#include "framebuffer.h"
 #ifdef IMLIB_ENABLE_QRCODES
+
+// Dual-core support for parallel processing
+typedef int (*dual_func_t)(int);
+extern volatile dual_func_t dual_func;
 
 // *INDENT-OFF*
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -216,6 +221,21 @@ typedef uint16_t quirc_pixel_t;
 #else
 #error "QUIRC_MAX_REGIONS > 65534 is not supported"
 #endif
+
+// Global variables for dual-core threshold processing
+static quirc_pixel_t *g_threshold_pixels = NULL;
+static uint32_t g_threshold_size = 0;
+static uint8_t g_threshold_value = 0;
+static bool g_threshold_inverted = false;
+
+// Global variables for dual-core RGB565 conversion
+static uint8_t *g_gray_dst = NULL;
+static uint16_t *g_rgb_src = NULL;
+static int g_rgb_y_start = 0;
+static int g_rgb_y_end = 0;
+static int g_rgb_width = 0;
+static int g_rgb_x_start = 0;
+static int g_rgb_x_end = 0;
 
 struct quirc_region {
     struct quirc_point  seed;
@@ -980,6 +1000,40 @@ static uint8_t otsu_threshold(uint16_t *histogram, uint32_t total) {
 #define HISTOGRAM_MAX 65535 // Truncate the histogram at 16-bit
 #define IGNORE_PERCENT 20
 
+// Dual-core threshold function - processes second half of pixels
+static int threshold_core1(int core)
+{
+    quirc_pixel_t *pend = g_threshold_pixels + g_threshold_size;
+    if (g_threshold_inverted) {
+        for (; g_threshold_pixels < pend; g_threshold_pixels++) {
+            *g_threshold_pixels = (*g_threshold_pixels > g_threshold_value)
+                                ? QUIRC_PIXEL_BLACK
+                                : QUIRC_PIXEL_WHITE;
+        }
+    } else {
+        for (; g_threshold_pixels < pend; g_threshold_pixels++) {
+            *g_threshold_pixels = (*g_threshold_pixels < g_threshold_value)
+                                ? QUIRC_PIXEL_BLACK
+                                : QUIRC_PIXEL_WHITE;
+        }
+    }
+    return 0;
+}
+
+// Dual-core RGB565 to grayscale conversion - processes second half of rows
+static int rgb565_to_gray_core1(int core)
+{
+    for (int y = g_rgb_y_start; y < g_rgb_y_end; y++) {
+        uint16_t *row_ptr = g_rgb_src + y * g_rgb_width;
+        // Calculate destination offset relative to g_gray_dst starting point
+        uint8_t *dst_ptr = g_gray_dst + ((y - g_rgb_y_start) * (g_rgb_x_end - g_rgb_x_start));
+        for (int x = g_rgb_x_start; x < g_rgb_x_end; x++) {
+            *dst_ptr++ = COLOR_RGB565_TO_GRAYSCALE(row_ptr[x]);
+        }
+    }
+    return 0;
+}
+
 static void threshold(struct quirc *q)
 {
     uint16_t width = q->w;
@@ -1024,14 +1078,36 @@ static void threshold(struct quirc *q)
 
     uint8_t o_threshold = otsu_threshold(histogram, total_hist_pixels);
 
-    // Apply threshold to binarize the image vector
+    // Apply threshold to binarize the image vector using dual-core
     {
         uint32_t total_pixels = (uint32_t) width * height;
-        for (uint32_t i = 0; i < total_pixels; i++) {
-            row[i] = (row[i] < o_threshold)
-                        ? QUIRC_PIXEL_BLACK
-                        : QUIRC_PIXEL_WHITE;
+
+        // Setup global variables for core 1
+        g_threshold_value = o_threshold;
+        g_threshold_size = total_pixels / 2;
+        quirc_pixel_t *midpoint = row + g_threshold_size;
+        g_threshold_pixels = midpoint;
+
+        // Start core 1 processing second half
+        dual_func = threshold_core1;
+
+        // Core 0 processes first half
+        if (g_threshold_inverted) {
+            for (uint32_t i = 0; i < g_threshold_size; i++) {
+                row[i] = (row[i] > o_threshold)
+                            ? QUIRC_PIXEL_BLACK
+                            : QUIRC_PIXEL_WHITE;
+            }
+        } else {
+            for (uint32_t i = 0; i < g_threshold_size; i++) {
+                row[i] = (row[i] < o_threshold)
+                            ? QUIRC_PIXEL_BLACK
+                            : QUIRC_PIXEL_WHITE;
+            }
         }
+
+        // Wait for core 1 to complete
+        while (dual_func) { }
     }
 }
 
@@ -2978,7 +3054,7 @@ const char *quirc_strerror(quirc_decode_error_t err)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi)
+void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi, bool find_inverted)
 {
     struct quirc *controller = quirc_new();
     quirc_resize(controller, roi->w, roi->h);
@@ -3003,12 +3079,41 @@ void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi)
             break;
         }
         case IMAGE_BPP_RGB565: {
-            for (int y = roi->y, yy = roi->y + roi->h; y < yy; y++) {
-                uint16_t *row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(ptr, y);
-                for (int x = roi->x, xx = roi->x + roi->w; x < xx; x++) {
-                    *(grayscale_image++) = COLOR_RGB565_TO_GRAYSCALE(IMAGE_GET_RGB565_PIXEL_FAST(row_ptr, x));
+            // Check if grayscale buffer is available (zero-copy optimization)
+            // Only use it if processing the full image (not an ROI)
+            if (MAIN_FB()->grayscale &&
+                roi->x == 0 && roi->y == 0 &&
+                roi->w == MAIN_FB()->w && roi->h == MAIN_FB()->h) {
+                // Use pre-extracted grayscale buffer directly (zero-copy)
+                memcpy(grayscale_image, MAIN_FB()->grayscale, roi->w * roi->h);
+            } else {
+                // Fall back to dual-core RGB565 conversion for ROI or if buffer unavailable
+                int half_h = roi->h / 2;
+
+                // Setup global variables for core 1 (second half of rows)
+                g_rgb_src = (uint16_t *)ptr->pixels;
+                g_rgb_width = ptr->w;
+                g_rgb_x_start = roi->x;
+                g_rgb_x_end = roi->x + roi->w;
+                g_rgb_y_start = roi->y + half_h;
+                g_rgb_y_end = roi->y + roi->h;
+                g_gray_dst = grayscale_image + (half_h * roi->w);
+
+                // Start core 1 processing second half
+                dual_func = rgb565_to_gray_core1;
+
+                // Core 0 processes first half of rows
+                for (int y = roi->y, yy = roi->y + half_h; y < yy; y++) {
+                    uint16_t *row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(ptr, y);
+                    for (int x = roi->x, xx = roi->x + roi->w; x < xx; x++) {
+                        *(grayscale_image++) = COLOR_RGB565_TO_GRAYSCALE(IMAGE_GET_RGB565_PIXEL_FAST(row_ptr, x));
+                    }
                 }
+
+                // Wait for core 1 to complete
+                while (dual_func) { }
             }
+
             break;
         }
         default: {
@@ -3019,12 +3124,53 @@ void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi)
     quirc_end(controller);
     list_init(out, sizeof(find_qrcodes_list_lnk_data_t));
 
-    for (int i = 0, j = quirc_count(controller); i < j; i++) {
-        struct quirc_code *code = fb_alloc(sizeof(struct quirc_code));
-        struct quirc_data *data = fb_alloc(sizeof(struct quirc_data));
-        // Offset jitters(noise) were empirically determined.
-        static const float offset_jitters[] = {0, -0.2, -0.3, -0.4, -0.5, 0.2};
-        size_t num_jitters = sizeof(offset_jitters) / sizeof(offset_jitters[0]);
+    // Check if any QR codes were detected
+    int num_codes = quirc_count(controller);
+    if (num_codes == 0) {
+        // Try inverted QR code detection only if find_inverted is enabled
+        if (find_inverted) {
+            // Try inverted QR code detection (white QR on black background)
+            // The image buffer still contains the original grayscale data,
+            // so we can re-threshold with inverted logic (darker = white, lighter = black)
+
+            // Reset detection state to prepare for retry
+            controller->num_regions = QUIRC_PIXEL_REGION;
+            controller->num_capstones = 0;
+            controller->num_grids = 0;
+
+            // Restore pixels buffer from grayscale image and apply inverted threshold
+            pixels_setup(controller);
+            g_threshold_inverted = true;
+            threshold(controller);
+            g_threshold_inverted = false;
+
+            // Re-run QR code detection on inverted pixels
+            for (int i = 0; i < controller->h; i++) {
+                finder_scan(controller, i);
+            }
+            for (int i = 0; i < controller->num_capstones; i++) {
+                test_grouping(controller, i);
+            }
+
+            // Check if inverted detection found any codes
+            num_codes = quirc_count(controller);
+        }
+
+        if (num_codes == 0) {
+            quirc_destroy(controller);
+            return;
+        }
+    }
+
+    // Offset jitters(noise) were empirically determined
+    static const float offset_jitters[] = {0, -0.2, -0.3, -0.4, -0.5, 0.2};
+    size_t num_jitters = sizeof(offset_jitters) / sizeof(offset_jitters[0]);
+
+    // Allocate decode structures once and reuse
+    struct quirc_code *code = fb_alloc(sizeof(struct quirc_code));
+    struct quirc_data *data = fb_alloc(sizeof(struct quirc_data));
+
+    for (int i = 0, j = num_codes; i < j; i++) {
         bool found = false;
 
         /* Consideration on jittering:
@@ -3088,10 +3234,11 @@ void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi)
 
             list_push_back(out, &lnk_data);
         }
-
-        fb_free();
-        fb_free();
     }
+
+    // Free decode structures once
+    fb_free();
+    fb_free();
 
     quirc_destroy(controller);
 }

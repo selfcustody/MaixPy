@@ -25,6 +25,7 @@ config = json.loads("""
         "LED_R": 13,
         "LED_G": 12,
         "LED_B": 14,
+        "LED_W": 32,
         "MIC0_WS": 19,
         "MIC0_DATA": 20,
         "MIC0_BCK": 18
@@ -34,6 +35,7 @@ config = json.loads("""
             "BUTTON_A": 10,
             "BUTTON_B": 16,
             "BUTTON_C": 11,
+            "LED_W": 32,
             "I2C_SDA": 31,
             "I2C_SCL": 30,
             "BACKLIGHT": 17
