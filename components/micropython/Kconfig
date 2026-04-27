@@ -182,6 +182,10 @@ menu "Micropython configurations"
 			bool "Enable base43 module"
 			default n
 
+		config MAIXPY_BC_UR_ENABLE
+			bool "Enable bc-ur module (Blockchain Commons UR for QR codes)"
+			default n
+
 		config MAIXPY_USE_MEMZIP
 			bool "Use memzip instead of frozen mpy"
 			default n
