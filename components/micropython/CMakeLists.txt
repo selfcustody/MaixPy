@@ -270,11 +270,6 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
     endif()
     set(LVGL_MPY_GEN_SRC "")
     set(LODEPNG_MPY_GEN_SRC "")
-    # ulab
-    if(CONFIG_MICROPYTHON_ULAB_ENALBE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/ulab/micropython-ulab/code")
-        append_srcs_dir(ADD_SRCS "port/src/ulab/micropython-ulab/code")
-    endif()
 
     if(CONFIG_MICROPY_SSL_ENABLE)
         list(APPEND ADD_INCLUDE "${mpy_core_dir}/lib/mbedtls/include")
