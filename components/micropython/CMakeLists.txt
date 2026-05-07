@@ -309,6 +309,7 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
     # k_quirc QR code detector (used by omv/img/qrcode.c)
     list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/k_quirc/include")
     append_srcs_dir(ADD_SRCS "port/src/k_quirc/src")
+    add_definitions(-DK_QUIRC_ADAPTIVE_THRESHOLD -DK_QUIRC_BILINEAR_THRESHOLD -DK_QUIRC_DUAL_CORE)
     # secp256k1
     if(CONFIG_MAIXPY_SECP256K1_ENABLE)
         list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/secp256k1-embedded/secp256k1"
