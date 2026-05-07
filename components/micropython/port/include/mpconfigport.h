@@ -338,12 +338,6 @@ extern const struct _mp_obj_module_t machine_module;
 extern const struct _mp_obj_module_t image_module;
 extern const struct _mp_obj_module_t sensor_module;
 extern const struct _mp_obj_module_t lcd_module;
-#if CONFIG_COMPONENT_LIB_SIPEED_KPU_SRC_ENABLE
-    extern const struct _mp_obj_module_t kpu_module;
-#endif // CONFIG_COMPONENT_LIB_SIPEED_KPU_SRC_ENABLE
-#if CONFIG_MAIXPY_AUDIO_ENABLE
-    extern const struct _mp_obj_module_t audio_module;
-#endif // CONFIG_MAIXPY_AUDIO_ENABLE
 #if CONFIG_MAIXPY_HASHLIB_ENABLE
     extern const struct  _mp_obj_module_t mp_module_uhashlib_maix;
 #endif // CONFIG_MAIXPY_HASHLIB_ENABLE
@@ -355,82 +349,7 @@ extern const struct _mp_obj_module_t mp_module_modules;
 #define CONFIG_MAIXPY_OMV_MINIMUM           (0) // Minimum function
 #endif //CONFIG_MAIXPY_OMV_MINIMUM
 
-// video record play
-#ifndef CONFIG_MAIXPY_VIDEO_ENABLE
-#define CONFIG_MAIXPY_VIDEO_ENABLE          (0) // avi video support
-#endif //CONFIG_MAIXPY_VIDEO_ENABLE
-#if CONFIG_MAIXPY_VIDEO_ENABLE
-extern const struct _mp_obj_module_t video_module;
-#define MAIXPY_PY_VIDEO_DEF \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_video), (mp_obj_t)&video_module },
-#else
-#define MAIXPY_PY_VIDEO_DEF
-#endif
-
-// nes game emulator
-#ifndef CONFIG_MAIXPY_NES_ENABLE
-#endif //CONFIG_MAIXPY_NES_ENABLE
-#if CONFIG_MAIXPY_NES_ENABLE
-extern const struct _mp_obj_module_t nes_module;
-#define MAIXPY_PY_NES_DEF \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_nes), (mp_obj_t)&nes_module },
-#else
-#define MAIXPY_PY_NES_DEF
-#endif
-
-// speech_recognizer
-#ifndef CONFIG_MAIXPY_SPEECH_RECOGNIZER_ENABLE
-#endif //CONFIG_MAIXPY_SPEECH_RECOGNIZER_ENABLE
-#if CONFIG_MAIXPY_SPEECH_RECOGNIZER_ENABLE
-extern const struct _mp_obj_module_t mp_module_speech_recognizer;
-#define MAIXPY_PY_SPEECH_RECOGNIZER_DEF \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_speech_recognizer), (mp_obj_t)&mp_module_speech_recognizer },
-#else
-#define MAIXPY_PY_SPEECH_RECOGNIZER_DEF
-#endif
-
-// lvgl GUI lib
-#if CONFIG_MAIXPY_LVGL_ENABLE
-#include "lv_gc.h"
-extern const struct _mp_obj_module_t mp_module_lvgl;
-extern const struct _mp_obj_module_t mp_module_lvgl_helper;
-#define MAIXPY_PY_LVGL_DEF \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_lvgl), (mp_obj_t)&mp_module_lvgl }, \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_lvgl_helper), (mp_obj_t)&mp_module_lvgl_helper },
-#define MAIXPY_LVGL_ROOTS LV_ROOTS \
-                          void* mp_lv_user_data;
-#else
-#define MAIXPY_PY_LVGL_DEF
-#define MAIXPY_LVGL_ROOTS
-#endif // CONFIG_MAIXPY_LVGL_ENABLE
-
-// lodepng
-#if CONFIG_MAIXPY_LODEPNG_ENABLE
-    extern const struct _mp_obj_module_t mp_module_lodepng;
-    #define MAIXPY_PY_LODEPNG_DEF \
-        { MP_OBJ_NEW_QSTR(MP_QSTR_lodepng), (mp_obj_t)&mp_module_lodepng },
-#else
-#define MAIXPY_PY_LODEPNG_DEF
-#endif
-
-// touchscreen
-#ifndef CONFIG_MAIXPY_TOUCH_SCREEN_ENABLE
-#define CONFIG_MAIXPY_TOUCH_SCREEN_ENABLE    (0)
-#endif
-#if CONFIG_MAIXPY_TOUCH_SCREEN_ENABLE
-extern const struct _mp_obj_module_t mp_module_touchscreen;
-#define MAIXPY_PY_TOUCHSCREEN_DEF \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_touchscreen), (mp_obj_t)&mp_module_touchscreen },
-#else
-#define MAIXPY_PY_TOUCHSCREEN_DEF 
-#endif
-
 #define MAIXPY_PY_MODULES                   (1)
-#if CONFIG_MAIXPY_ULTRASONIC_ENABLE
-    #define MAIXPY_PY_MODULES_ULTRASONIC    (1)
-#else
-    #define MAIXPY_PY_MODULES_ULTRASONIC    (0)
-#endif
 
 // micropython-ulab
 #if CONFIG_MICROPYTHON_ULAB_ENALBE
@@ -503,20 +422,6 @@ extern const struct _mp_obj_module_t mp_module_touchscreen;
 #define MAIXPY_NETWORK_ROOTS
 #endif // CONFIG_MAIXPY_NETWORK_ENABLE
 
-#if CONFIG_COMPONENT_LIB_SIPEED_KPU_SRC_ENABLE
-#define COMPONENT_LIB_SIPEED_KPU_SRC_DEF \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_KPU), (mp_obj_t)&kpu_module },
-#else
-#define COMPONENT_LIB_SIPEED_KPU_SRC_DEF
-#endif // CONFIG_COMPONENT_LIB_SIPEED_KPU_SRC_ENABLE
-
-#if CONFIG_MAIXPY_AUDIO_ENABLE
-#define MAIXPY_AUDIO_DEF \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_audio), (mp_obj_t)&audio_module },
-#else
-#define MAIXPY_AUDIO_DEF
-#endif // CONFIG_MAIXPY_AUDIO_ENABLE
-
 #if CONFIG_MAIXPY_HASHLIB_ENABLE
 #define MAIXPY_HASHLIB_DEF \
     { MP_OBJ_NEW_QSTR(MP_QSTR_uhashlib_hw), (mp_obj_t)&mp_module_uhashlib_maix },
@@ -547,15 +452,7 @@ extern const struct _mp_obj_module_t mp_module_touchscreen;
     { MP_OBJ_NEW_QSTR(MP_QSTR_lcd), (mp_obj_t)&lcd_module }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_ucryptolib), (mp_obj_t)&mp_module_ucryptolib }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_modules), (mp_obj_t)&mp_module_modules }, \
-    MAIXPY_PY_SPEECH_RECOGNIZER_DEF \
-    MAIXPY_PY_NES_DEF \
-    MAIXPY_PY_VIDEO_DEF \
-    MAIXPY_PY_LVGL_DEF \
-    MAIXPY_PY_LODEPNG_DEF \
-    MAIXPY_PY_TOUCHSCREEN_DEF \
     MAIXPY_NETWORK_DEF \
-    COMPONENT_LIB_SIPEED_KPU_SRC_DEF \
-    MAIXPY_AUDIO_DEF \
     MAIXPY_HASHLIB_DEF
 
 
@@ -628,7 +525,6 @@ extern const struct _mp_obj_module_t mp_module_touchscreen;
 #define MICROPY_PORT_ROOT_POINTERS \
     const char *readline_hist[16];  \
     struct _machine_uart_obj_t *Maix_stdio_uart; \
-    MAIXPY_LVGL_ROOTS \
     MAIXPY_NETWORK_ROOTS
 
 

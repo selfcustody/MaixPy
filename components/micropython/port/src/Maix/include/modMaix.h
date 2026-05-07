@@ -17,18 +17,9 @@
 #define MICROPY_INCLUDED_MAIX_MAIX_H
 
 #include "py/obj.h"
-#include "i2s.h"
 
 extern const mp_obj_type_t Maix_fpioa_type;
 extern const mp_obj_type_t Maix_gpio_type;
-#if CONFIG_MAIXPY_AUDIO_ENABLE
-    extern const mp_obj_type_t Maix_i2s_type;
-    extern const mp_obj_type_t Maix_audio_type;
-#endif
-extern const mp_obj_type_t Maix_fft_type;
-#if CONFIG_MAIXPY_MIC_ARRAY_ENABLE
-    extern const mp_obj_type_t Maix_mic_array_type;
-#endif
 extern const mp_obj_type_t cpufreq_type;
 extern const mp_obj_type_t Maix_utils_type;
 #endif // MICROPY_INCLUDED_MAIX_MAIX_H
