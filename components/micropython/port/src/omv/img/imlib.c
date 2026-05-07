@@ -448,14 +448,7 @@ bool imlib_read_geometry(mp_obj_t fp, image_t *img, const char *path, img_read_s
     file_close(fp);
 
     bool vflipped = false;
-    if ((magic[0]=='P')
-    && ((magic[1]=='2') || (magic[1]=='3')
-    ||  (magic[1]=='5') || (magic[1]=='6'))) { // PPM
-        rs->format = FORMAT_PNM;
-        file_read_open_raise(fp, path);
-        file_buffer_on(fp); // REMEMBER TO TURN THIS OFF LATER!
-        ppm_read_geometry(fp, img, path, &rs->ppm_rs);
-    } else if ((magic[0]=='B') && (magic[1]=='M')) { // BMP
+    if ((magic[0]=='B') && (magic[1]=='M')) { // BMP
         rs->format = FORMAT_BMP;
         file_read_open_raise(fp, path);
         file_buffer_on(fp); // REMEMBER TO TURN THIS OFF LATER!
@@ -472,9 +465,6 @@ static void imlib_read_pixels(FIL *fp, image_t *img, int line_start, int line_en
     switch (rs->format) {
         case FORMAT_BMP:
             bmp_read_pixels(fp, img, line_start, line_end, &rs->bmp_rs);
-            break;
-        case FORMAT_PNM:
-            ppm_read_pixels(fp, img, line_start, line_end, &rs->ppm_rs);
             break;
         default: // won't happen
             break;
@@ -646,28 +636,6 @@ void imlib_load_image(image_t *img, const char *path, mp_obj_t file, uint8_t* bu
         }
         vfs_internal_close(file, &err);
         bmp_read(img, path);
-    } else if ((magic[0]==0xFF) && (magic[1]==0xD8)) { // JPEG
-        // jpeg_read(img, path);
-        if(data_type == 2)
-        {
-            err = picojpeg_util_read(img, NULL, buf, buf_len, MAIN_FB()->w_max, MAIN_FB()->h_max);
-        }
-        else
-        {
-            err = picojpeg_util_read(img, file, NULL, 0, MAIN_FB()->w_max, MAIN_FB()->h_max);
-        }
-        if(data_type != 2)
-        {
-            int tmp;
-            if(data_type == 0)
-                vfs_internal_close(file, &tmp);
-            if( err != 0)
-            {
-                if(data_type == 1)
-                    vfs_internal_close(file, &tmp);
-                mp_raise_OSError(err);
-            }
-        }
     } else {
         int tmp;
         if(data_type == 0)
@@ -697,9 +665,9 @@ void imlib_save_image(image_t *img, const char *path, rectangle_t *roi, int qual
         //     file_close(&fp);
         //     break;
         // }
-        case FORMAT_JPG:
-            jpeg_write(img, path, quality);
-            break;
+        // case FORMAT_JPG:  // disabled: Krux saves only BMP; gated to allow jpeg.c to be stripped
+        //     jpeg_write(img, path, quality);
+        //     break;
         // case FORMAT_DONT_CARE:
         //     // Path doesn't have an extension.
         //     if (IM_IS_JPEG(img)) {
