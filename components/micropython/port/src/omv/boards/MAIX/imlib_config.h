@@ -49,23 +49,19 @@
 #endif
 
 // Enable math ops
-#if CONFIG_MAIXPY_OMV_MATH_OPS
-    #define IMLIB_ENABLE_MATH_OPS
-#endif
+// #define IMLIB_ENABLE_MATH_OPS
 
 // Enable flood_fill()
-#define IMLIB_ENABLE_FLOOD_FILL
+// #define IMLIB_ENABLE_FLOOD_FILL
 
 // Enable mean()
-#define IMLIB_ENABLE_MEAN
+// #define IMLIB_ENABLE_MEAN
 
 // Enable median()
-#if CONFIG_MAIXPY_OMV_MEDIAN
-    #define IMLIB_ENABLE_MEDIAN
-#endif
+// #define IMLIB_ENABLE_MEDIAN
 
 // Enable mode()
-#define IMLIB_ENABLE_MODE
+// #define IMLIB_ENABLE_MODE
 
 // Enable midpoint()
 // #define IMLIB_ENABLE_MIDPOINT
