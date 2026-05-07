@@ -351,10 +351,6 @@ extern const struct _mp_obj_module_t mp_module_modules;
 
 #define MAIXPY_PY_MODULES                   (1)
 
-// micropython-ulab
-#if CONFIG_MICROPYTHON_ULAB_ENALBE
-    #define MODULE_ULAB_ENABLED (1)
-#endif
 #ifndef CONFIG_MAIXPY_FLASH_ENABLE
     #define CONFIG_MAIXPY_FLASH_ENABLE    (0)
 #endif

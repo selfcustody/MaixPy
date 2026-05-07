@@ -61,10 +61,6 @@ menu "Micropython configurations"
 			bool "Enable re"
 			default y
 
-		config MICROPYTHON_ULAB_ENALBE
-			bool "Enable ulab module(a numpy-like fast vector module)"
-			default y
-
 		config MICROPYTHON_KMODEL_V4_SUPPORT
 			bool "support v4 kmodel"
 			default n
