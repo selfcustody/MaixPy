@@ -85,18 +85,10 @@ STATIC mp_obj_t os_uname(void) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_0(os_uname_obj, os_uname);
 
-STATIC mp_obj_t os_urandom(mp_obj_t num) {
-    mp_int_t n = mp_obj_get_int(num);
-    vstr_t vstr;
-    vstr_init_len(&vstr, n);
-    uint32_t r = 0;
-    for (int i = 0; i < n; i++) {
-        r = rng_get(); // returns 32-bit hardware random number
-        vstr.buf[i] = r;
-    }
-    return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(os_urandom_obj, os_urandom);
+// os.urandom() was removed on purpose. It was backed by rng_get(), a fixed-seed
+// Yasmarang PRNG with no entropy input, so every device produced the identical
+// byte stream from boot. The name invites use as a CSPRNG, which it never was.
+// Anything needing entropy must use a real source, such as camera or dice input.
 
 #if MICROPY_PY_OS_DUPTERM
 
@@ -188,7 +180,6 @@ MP_DEFINE_CONST_FUN_OBJ_0(mod_os_flash_format_obj, mod_os_flash_format);
 STATIC const mp_rom_map_elem_t os_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_uos) },
     { MP_ROM_QSTR(MP_QSTR_uname), MP_ROM_PTR(&os_uname_obj) },
-    { MP_ROM_QSTR(MP_QSTR_urandom), MP_ROM_PTR(&os_urandom_obj) },
    	#if MICROPY_HW_UART_REPL
     { MP_ROM_QSTR(MP_QSTR_set_REPLio), MP_ROM_PTR(&uos_set_REPLio_obj) },
     #endif

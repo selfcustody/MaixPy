@@ -2,10 +2,12 @@
 #include "rng.h"
 
 
-// For MCUs that don't have an RNG we still need to provide a rng_get() function,
-// eg for lwIP.  A pseudo-RNG is not really ideal but we go with it for now.  We
-// don't want to use urandom's pRNG because then the user won't see a reproducible
-// random stream.
+// WARNING: this is NOT a hardware RNG and NOT cryptographically secure.
+// The K210 has no TRNG, so rng_get() is a fixed-seed Yasmarang PRNG: its state
+// is identical on every boot of every device, making the output fully
+// deterministic and predictable. It exists only to satisfy callers such as lwIP
+// and mbedtls that require an rng_get() symbol.
+// Never use it for key material, nonces, or any other security purpose.
 
 // Yasmarang random number generator by Ilya Levin
 // http://www.literatecode.com/yasmarang
