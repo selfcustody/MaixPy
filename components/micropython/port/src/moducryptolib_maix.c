@@ -59,6 +59,8 @@ typedef struct _mp_obj_aes_t {
     context_t ctx;
     uint8_t mode;
     uint8_t key_len;
+    // Truncated GCM tag. See the mac_len check in ucryptolib_aes_make_new()
+    // before changing this size.
     uint8_t gcm_tag[4];
 } mp_obj_aes_t;
 
@@ -97,7 +99,14 @@ STATIC mp_obj_t ucryptolib_aes_make_new(const mp_obj_type_t *type, size_t n_args
         mp_raise_ValueError("invalid mode");
     }
 
-    // Validate mac_len for GCM mode
+    // Validate mac_len for GCM mode.
+    // Keep this pinned at 4 and do not widen it casually. The K210 engine
+    // emits a full 16 byte tag, but aes.h documents the tag buffer as 4
+    // bytes and only the first 4 bytes have ever been exercised in the
+    // field, by KEF. The other 12 have never been checked against a known
+    // answer test, so treat them as unverified until someone does that.
+    // Widening also changes the KEF envelope format, so it is not a local
+    // decision. See the gcm_tag buffer in AES_run().
     if (mode == UCRYPTOLIB_MODE_GCM) {
         int mac_len = args[ARG_mac_len].u_int;
         if (mac_len != 4) {
@@ -198,7 +207,10 @@ STATIC mp_obj_t AES_run(size_t n_args, const mp_obj_t *args, bool encrypt)
     }
 
     if (self->mode == UCRYPTOLIB_MODE_GCM) {
-        uint8_t gcm_tag[4];
+        // gcm_get_tag() writes 16 bytes (4 hardware registers) and reads them
+        // back through a uint32_t* cast, despite aes.h documenting a 4 byte
+        // buffer. Only the first 4 bytes are kept, see below.
+        uint8_t gcm_tag[16] __attribute__((aligned(4)));
         gcm_context_t ctx;
         ctx.input_key = self->ctx.input_key;
         ctx.iv = self->ctx.iv;
@@ -214,7 +226,7 @@ STATIC mp_obj_t AES_run(size_t n_args, const mp_obj_t *args, bool encrypt)
             else if (self->key_len == AES_KEYLEN_192) aes_gcm192_hard_encrypt(&ctx, in_bufinfo.buf, in_bufinfo.len, out_buf_ptr, gcm_tag);
             else aes_gcm128_hard_encrypt(&ctx, in_bufinfo.buf, in_bufinfo.len, out_buf_ptr, gcm_tag);
         }
-        memcpy(self->gcm_tag, gcm_tag, sizeof(gcm_tag));
+        memcpy(self->gcm_tag, gcm_tag, sizeof(self->gcm_tag));
     }
     else if (self->mode == UCRYPTOLIB_MODE_CBC) {
         cbc_context_t ctx;
