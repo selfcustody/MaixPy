@@ -76,16 +76,12 @@ static const uint16_t gray2rgb565[64]={
 };
 #endif
 
-typedef enum 
+typedef enum
 {
     LCD_TYPE_ST7789,
     LCD_TYPE_ILI9486,
     LCD_TYPE_ILI9481,
-	//  rgb 屏， 使用转接板设备时传入的屏幕类型
-	LCD_TYPE_5P0_7P0,
-	LCD_TYPE_5P0_IPS,
-	LCD_TYPE_480_272_4P3,
-    LCD_TYPE_ST7789V,
+    LCD_TYPE_ST7789V = 6,
 }lcd_type_t;
 
 typedef enum _lcd_dir
@@ -159,7 +155,6 @@ typedef struct
 } lcd_t;
 
 extern lcd_t lcd_mcu;
-extern lcd_t lcd_rgb;
 
 // 当前的 lcd 屏，全局唯一
 extern lcd_t *lcd;

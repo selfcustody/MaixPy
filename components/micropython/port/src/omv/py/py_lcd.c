@@ -31,8 +31,7 @@ static enum {
     DEV_CUBE_IPS_240x240,
     DEV_M5STICK,
     DEV_TWATCH,
-    DEV_CONVERTER,
-    DEV_EMBED_FIRE,
+    DEV_EMBED_FIRE = 6,
 } type = DEV_NONE; // device type
 
 static uint8_t rotation = 0;
@@ -69,9 +68,6 @@ static inline void setup_lcd_gpio_standard(void)
 }
 static mp_obj_t py_lcd_write_register(mp_obj_t addr_obj, mp_obj_t data_obj)
 {
-    if(type == DEV_CONVERTER){
-        mp_raise_ValueError("device type is not support!");
-    }
     uint8_t addr = mp_obj_get_int(addr_obj);
     tft_write_command(addr);
     if (mp_obj_is_integer(data_obj)) {
@@ -103,7 +99,6 @@ static mp_obj_t py_lcd_deinit()
     case DEV_M5STICK:
     case DEV_TWATCH:
     case DEV_CUBE_IPS_240x240:
-    case DEV_CONVERTER:
     case DEV_EMBED_FIRE:
         lcd->deinit();
         width_curr = 0;
@@ -264,11 +259,6 @@ static mp_obj_t py_lcd_init(size_t n_args, const mp_obj_t *pos_args, mp_map_t *k
             setup_lcd_gpio_standard();
             lcd = &lcd_mcu;
             break;
-        case DEV_CONVERTER:
-            setup_lcd_gpio_standard();
-            lcd = &lcd_rgb;
-            break;
-
         case DEV_EMBED_FIRE:
             setup_lcd_gpio_standard();
 
@@ -403,7 +393,6 @@ static mp_obj_t py_lcd_display(size_t n_args, const mp_obj_t *args, mp_map_t *kw
     case DEV_M5STICK:
     case DEV_TWATCH:
     case DEV_CUBE_IPS_240x240:
-    case DEV_CONVERTER:
     case DEV_EMBED_FIRE:
         //fill pad
         if (oft.x < 0 || oft.y < 0)
@@ -470,7 +459,6 @@ static mp_obj_t py_lcd_clear(size_t n_args, const mp_obj_t *pos_args, mp_map_t *
     case DEV_M5STICK:
     case DEV_TWATCH:
     case DEV_CUBE_IPS_240x240:
-    case DEV_CONVERTER:
     case DEV_EMBED_FIRE:
         lcd->clear(color);
         return mp_const_none;

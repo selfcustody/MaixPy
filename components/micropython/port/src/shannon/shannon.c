@@ -32,22 +32,29 @@ double log2(double n) {
     return log(n) * inv_log2;
 }
 
+// Largest frame this module will read: QVGA (320x240) RGB565.
+#define MAX_IMAGE_BYTES (320 * 240 * 2)
+
 STATIC mp_obj_t image_entropy_16b(mp_obj_t image_bytes) {
     mp_buffer_info_t image_bytes_buffer;
     mp_get_buffer_raise(image_bytes, &image_bytes_buffer, MP_BUFFER_READ);
 
-    // uint8_t image_buffer[320*240*2];
-    uint8_t *image_buffer = malloc(320 * 240 * 2 * sizeof(uint8_t));
-    if (image_buffer == NULL) {
-        mp_raise_OSError("Not enough memory");  // MP_ENOMEM not defined
+    // Read straight from the caller's buffer, no scratch copy. The length is
+    // capped so a frame larger than QVGA cannot be read past, and rounded down
+    // to whole 16 bit pixels so the i + 1 read below always stays in bounds.
+    // The cap also keeps the pixel count below 2*65536, which the saturating
+    // counter logic further down relies on.
+    const uint8_t *image_buffer = image_bytes_buffer.buf;
+    size_t image_len = image_bytes_buffer.len;
+    if (image_len > MAX_IMAGE_BYTES) {
+        image_len = MAX_IMAGE_BYTES;
     }
-    memcpy(image_buffer, image_bytes_buffer.buf, image_bytes_buffer.len);
+    image_len &= ~(size_t)1;
 
     // uint16_t pixel_counts[65536] = {0};
     uint16_t *pixel_counts = malloc(65536 * sizeof(uint16_t));
     if (pixel_counts == NULL) {
-        free(image_buffer);
-        mp_raise_OSError("Not enough memory");
+        mp_raise_OSError("Not enough memory");  // MP_ENOMEM not defined
     }
     memset(pixel_counts, 0, 65536 * sizeof(uint16_t));
 
@@ -55,7 +62,7 @@ STATIC mp_obj_t image_entropy_16b(mp_obj_t image_bytes) {
     // So it's possible that, one, but only one count is greater than uint16_t
     uint32_t long_pixel_count = 0;
 
-    for (size_t i = 0; i < image_bytes_buffer.len; i += 2) {
+    for (size_t i = 0; i < image_len; i += 2) {
         uint16_t pixel_value = image_buffer[i] + (image_buffer[i + 1] << 8);
         if (pixel_counts[pixel_value] < 0xFFFE) {
             pixel_counts[pixel_value]++;
@@ -69,8 +76,7 @@ STATIC mp_obj_t image_entropy_16b(mp_obj_t image_bytes) {
         }
     }
 
-    free(image_buffer);
-    size_t total_pixels = image_bytes_buffer.len / 2;
+    size_t total_pixels = image_len / 2;
     double entropy = 0;
 
 

@@ -41,23 +41,6 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
     if(CONFIG_MAIXPY_USE_MEMZIP)
         list(APPEND ADD_INCLUDE  "${mpy_core_dir}/lib/memzip")
     endif()
-    if(CONFIG_MAIXPY_AUDIO_ENABLE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/audio/include"
-                                "${mpy_port_dir}/src/audio/wav/include"
-        )
-    endif()
-    if(CONFIG_MAIXPY_ULTRASONIC_ENABLE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/modules/ultrasonic/include")
-    endif()
-    if(CONFIG_MAIXPY_SPEECH_ENABLE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/speech/include"
-                                "${mpy_port_dir}/src/speech/maix_asr/include"
-                                "${mpy_port_dir}/src/speech/isolated_word/include"
-        )
-    endif()
-    if(CONFIG_MAIXPY_NES_ENABLE)
-        list(APPEND ADD_PRIVATE_INCLUDE "${mpy_port_dir}/src/nes/mapper")
-    endif()
     ###############################################
 
     
@@ -65,41 +48,7 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
     ############## Add source files ###############
     append_srcs_dir(MPY_PORT_SRCS "port/src")
     append_srcs_dir(MPY_PORT_SRCS "port/src/Maix")
-    if(NOT CONFIG_COMPONENT_LIB_SIPEED_KPU_SRC_ENABLE)
-        list(REMOVE_ITEM MPY_PORT_SRCS "port/src/Maix/Maix_kpu.c")
-        list(REMOVE_ITEM MPY_PORT_SRCS "port/src/Maix/Maix_kpu_classifier.c")
-    endif()
-    if(CONFIG_MAIXPY_AUDIO_ENABLE)
-        append_srcs_dir(MPY_PORT_SRCS "port/src/audio")
-        append_srcs_dir(MPY_PORT_SRCS "port/src/audio/wav")
-    else()
-        list(REMOVE_ITEM MPY_PORT_SRCS "port/src/Maix/Maix_i2s.c")
-    endif()
-    if(NOT CONFIG_MAIXPY_MIC_ARRAY_ENABLE)
-        list(REMOVE_ITEM MPY_PORT_SRCS "port/src/Maix/Maix_mic_array.c")
-    endif()
     append_srcs_dir(MPY_PORT_SRCS "port/src/modules")
-    if(CONFIG_MAIXPY_ULTRASONIC_ENABLE)
-        append_srcs_dir(MPY_PORT_SRCS "port/src/modules/ultrasonic/src")
-    endif()
-    if(CONFIG_MAIXPY_ONEWIRE_ENABLE)
-        append_srcs_dir(MPY_PORT_SRCS "port/src/modules/onewire")
-    endif()
-    if(CONFIG_MAIXPY_SPEECH_ENABLE)
-        append_srcs_dir(MPY_PORT_SRCS "port/src/speech/")
-        append_srcs_dir(MPY_PORT_SRCS "port/src/speech/maix_asr")
-        list(APPEND ADD_STATIC_LIB "port/src/speech/maix_asr/libmaix_asr.a") # append_srcs_dir(MPY_PORT_SRCS "port/src/speech/maix_asr/src")
-        append_srcs_dir(MPY_PORT_SRCS "port/src/speech/isolated_word")
-    endif()
-    if(CONFIG_MAIXPY_WS2812_ENABLE)
-        append_srcs_dir(MPY_PORT_SRCS "port/src/modules/ws2812/src")
-    endif()
-    if(CONFIG_MAIXPY_HTPA_ENABLE)
-        append_srcs_dir(MPY_PORT_SRCS "port/src/modules/htpa/src")
-    endif()
-    if(CONFIG_MAIXPY_AMG88XX_ENABLE)
-        append_srcs_dir(MPY_PORT_SRCS "port/src/modules/amg88xx/src")
-    endif()
     append_srcs_dir(MPY_PORT_SRCS "port/src/omv")
     append_srcs_dir(MPY_PORT_SRCS "port/src/omv/img")
     append_srcs_dir(MPY_PORT_SRCS "port/src/omv/py")
@@ -314,102 +263,13 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
 
 
     ############# OPTIONAL MODULES PART 1 ##############
-    # nes emulator
-    if(CONFIG_MAIXPY_NES_ENABLE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/nes/include")
-        append_srcs_dir(ADD_SRCS "port/src/nes")
-    endif()
-    # video support
-    if(CONFIG_MAIXPY_VIDEO_ENABLE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/video/include"
-                                "${mpy_port_dir}/src/video/avi/include"
-                                )
-        append_srcs_dir(ADD_SRCS "port/src/video")
-        append_srcs_dir(ADD_SRCS "port/src/video/avi")
-    endif()
-    # touch screen
-    if(CONFIG_MAIXPY_TOUCH_SCREEN_ENABLE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/touchscreen/include"
-                                )
-        append_srcs_dir(ADD_SRCS "port/src/touchscreen")
-        if(CONFIG_MAIXPY_TOUCH_SCREEN_DRIVER_NS2009)
-            list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/touchscreen/ns2009/include")
-            append_srcs_dir(ADD_SRCS "port/src/touchscreen/ns2009")
-        endif()
-        if(CONFIG_MAIXPY_TOUCH_SCREEN_DRIVER_FT52XX)
-            list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/touchscreen/ft52xx"
-                                    "${mpy_port_dir}/src/touchscreen/ns2009/include")
-            append_srcs_dir(ADD_SRCS "port/src/touchscreen/ft52xx")
-            append_srcs_dir(ADD_SRCS "port/src/touchscreen/ns2009")
-        endif()
-    endif()
     # omv minimum
     if(CONFIG_MAIXPY_OMV_MINIMUM)
         # TODO:
         message(STATUS "OMV minimum enabled")
     endif()
-    # LVGL
-    if(CONFIG_MAIXPY_LVGL_ENABLE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/lvgl/include"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/include"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/src"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/src/lv_core"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/src/lv_draw"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/src/lv_font"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/src/lv_hal"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/src/lv_misc"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/src/lv_objx"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/src/lv_themes"
-                                "${mpy_port_dir}/src/lvgl/lv_bindings"
-                                )
-        append_srcs_dir(LVGL_MPY_SRCS "port/src/lvgl/lv_bindings/lvgl/src/lv_core")
-        append_srcs_dir(LVGL_MPY_SRCS "port/src/lvgl/lv_bindings/lvgl/src/lv_draw")
-        append_srcs_dir(LVGL_MPY_SRCS "port/src/lvgl/lv_bindings/lvgl/src/lv_font")
-        append_srcs_dir(LVGL_MPY_SRCS "port/src/lvgl/lv_bindings/lvgl/src/lv_hal")
-        append_srcs_dir(LVGL_MPY_SRCS "port/src/lvgl/lv_bindings/lvgl/src/lv_misc")
-        append_srcs_dir(LVGL_MPY_SRCS "port/src/lvgl/lv_bindings/lvgl/src/lv_objx")
-        append_srcs_dir(LVGL_MPY_SRCS "port/src/lvgl/lv_bindings/lvgl/src/lv_themes")
-        append_srcs_dir(LVGL_MPY_SRCS "port/src/lvgl")
-        set(LVGL_MPY_GEN_SRC "${lvgl_build_dir}/lv_mpy.c")
-        # add relative path for  ${mpy_build_gen_header_dir}/qstr.i.last need
-        file(RELATIVE_PATH LVGL_MPY_GEN_SRC_REL ${CMAKE_CURRENT_LIST_DIR} ${LVGL_MPY_GEN_SRC})
-        list(APPEND ADD_SRCS ${LVGL_MPY_SRCS} ${LVGL_MPY_GEN_SRC_REL})
-        set_property(SOURCE ${LVGL_MPY_GEN_SRC} PROPERTY GENERATED 1)
-
-        set(lvgl_gen_py_tool ${mpy_port_dir}/src/lvgl/lv_bindings/gen/gen_mpy.py)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLV_CONF_H=1 -DLV_CONF_INCLUDE_SIMPLE")
-    else()
-        set(LVGL_MPY_GEN_SRC "")
-    endif()
-    # lodepng
-    if(CONFIG_MAIXPY_LODEPNG_ENABLE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/lvgl/lv_bindings/driver/png/lodepng")
-        set(LODEPNG_SRC "${mpy_port_dir}/src/lvgl/lv_bindings/driver/png/lodepng/lodepng.cpp")
-        set(LODEPNG_SRC_C "${lodepng_build_dir}/lodepng.c")
-        set_property(SOURCE ${LODEPNG_SRC_C} PROPERTY GENERATED 1)
-        # add relative path for  ${mpy_build_gen_header_dir}/qstr.i.last need
-        file(RELATIVE_PATH LODEPNG_SRC_C_REL ${CMAKE_CURRENT_LIST_DIR} ${LODEPNG_SRC_C})
-        list(APPEND ADD_SRCS ${LODEPNG_SRC_C_REL})
-        set(LODEPNG_MPY_GEN_SRC "${lodepng_build_dir}/lodepng_mpy.c")
-        set_property(SOURCE ${LODEPNG_MPY_GEN_SRC} PROPERTY GENERATED 1)
-        # add relative path for  ${mpy_build_gen_header_dir}/qstr.i.last need
-        file(RELATIVE_PATH LODEPNG_MPY_GEN_SRC_REL ${CMAKE_CURRENT_LIST_DIR} ${LODEPNG_MPY_GEN_SRC})
-        list(APPEND ADD_SRCS ${LODEPNG_MPY_GEN_SRC_REL})
-        add_custom_command(OUTPUT ${LODEPNG_SRC_C}
-            COMMAND mkdir -p ${lodepng_build_dir}
-            COMMAND cp ${LODEPNG_SRC} ${LODEPNG_SRC_C}
-            DEPENDS ${LODEPNG_SRC}
-            )
-        set(lvgl_gen_py_tool ${mpy_port_dir}/src/lvgl/lv_bindings/gen/gen_mpy.py)
-    else()
-        set(LODEPNG_MPY_GEN_SRC "")
-    endif()
-    # ulab
-    if(CONFIG_MICROPYTHON_ULAB_ENALBE)
-        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/ulab/micropython-ulab/code")
-        append_srcs_dir(ADD_SRCS "port/src/ulab/micropython-ulab/code")
-    endif()
+    set(LVGL_MPY_GEN_SRC "")
+    set(LODEPNG_MPY_GEN_SRC "")
 
     if(CONFIG_MICROPY_SSL_ENABLE)
         list(APPEND ADD_INCLUDE "${mpy_core_dir}/lib/mbedtls/include")
@@ -441,6 +301,10 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
         append_srcs_dir(ADD_SRCS "port/src/qrcode/qrcodegen")
         append_srcs_dir(ADD_SRCS "port/src/qrcode")
     endif()
+    # k_quirc QR code detector (used by omv/img/qrcode.c)
+    list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/k_quirc/include")
+    append_srcs_dir(ADD_SRCS "port/src/k_quirc/src")
+    add_definitions(-DK_QUIRC_ADAPTIVE_THRESHOLD -DK_QUIRC_BILINEAR_THRESHOLD -DK_QUIRC_DUAL_CORE)
     # secp256k1
     if(CONFIG_MAIXPY_SECP256K1_ENABLE)
         list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/secp256k1-embedded/secp256k1"
@@ -467,6 +331,16 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
         list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/base43")
         append_srcs_dir(ADD_SRCS "port/src/base43")
     endif()
+    # bc-ur (Blockchain Commons UR) for QR code decoding
+    if(CONFIG_MAIXPY_BC_UR_ENABLE)
+        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/bc-ur")
+        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/bc-ur/src")
+        list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/bc-ur/src/types")
+        append_srcs_dir(ADD_SRCS "port/src/bc-ur")
+        append_srcs_dir(ADD_SRCS "port/src/bc-ur/src")
+        append_srcs_dir(ADD_SRCS "port/src/bc-ur/src/types")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUR_USE_K210_SHA256")
+    endif()
     #############################################
 
     ################## FLAGS ####################
@@ -483,40 +357,6 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
     separate_arguments(cmd_param_cinclude NATIVE_COMMAND ${include_dir_flags})
     #############################################
 
-    ########### OPTIONAL MODULES PART 2 #########
-
-    # lvgl
-    if(CONFIG_MAIXPY_LVGL_ENABLE)
-        separate_arguments(cmd_param_lvgl_fake_libc_inc NATIVE_COMMAND ${mpy_port_dir}/src/lvgl/lv_bindings/pycparser/utils/fake_libc_include)
-        set(lvgl_core_header ${mpy_port_dir}/src/lvgl/lv_bindings/lvgl/lvgl.h)
-        set(LVGL_MPY_GEN_SRC_PP ${lvgl_build_dir}/lvgl.pp.c)
-        set(LVGL_MPY_METADATA ${lvgl_build_dir}/lv_mpy.json)
-        add_custom_command(OUTPUT ${LVGL_MPY_GEN_SRC_PP}
-                    COMMAND mkdir -p ${lvgl_build_dir}
-                    COMMAND ${CMAKE_C_COMPILER} -E ${cmd_param_cflag} ${cmd_param_cinclude} -I${cmd_param_lvgl_fake_libc_inc} ${lvgl_core_header} > ${LVGL_MPY_GEN_SRC_PP}
-                    DEPENDS ${lvgl_core_header}
-                    )
-        add_custom_command(OUTPUT ${LVGL_MPY_GEN_SRC}
-                    COMMAND ${python} ${lvgl_gen_py_tool} ${cmd_param_cinclude} -M lvgl -MP lv -MD ${LVGL_MPY_METADATA} -E ${LVGL_MPY_GEN_SRC_PP} ${lvgl_core_header} > ${LVGL_MPY_GEN_SRC}
-                    DEPENDS ${LVGL_MPY_GEN_SRC_PP}
-                )
-    endif()
-    # lodepng
-    if(CONFIG_MAIXPY_LODEPNG_ENABLE)
-        separate_arguments(cmd_param_lvgl_fake_libc_inc NATIVE_COMMAND ${mpy_port_dir}/src/lvgl/lv_bindings/pycparser/utils/fake_libc_include)
-        set(lodepng_core_header ${mpy_port_dir}/src/lvgl/lv_bindings/driver/png/lodepng/lodepng.h)
-        set(LODEPNG_MPY_GEN_SRC_PP ${lodepng_build_dir}/lodepng.pp.c)
-        set(LODEPNG_MPY_METADATA ${lodepng_build_dir}/lodepng_mpy.json)
-        add_custom_command(OUTPUT ${LODEPNG_MPY_GEN_SRC_PP}
-                    COMMAND mkdir -p ${lodepng_build_dir}
-                    COMMAND ${CMAKE_C_COMPILER} -E ${cmd_param_cflag} ${cmd_param_cinclude} -I${cmd_param_lvgl_fake_libc_inc} ${lodepng_core_header} > ${LODEPNG_MPY_GEN_SRC_PP}
-                    DEPENDS ${lodepng_core_header}
-                    )
-        add_custom_command(OUTPUT ${LODEPNG_MPY_GEN_SRC}
-                    COMMAND ${python} ${lvgl_gen_py_tool} ${cmd_param_cinclude} -M lodepng -MP lodepng -MD ${LODEPNG_MPY_METADATA} -E ${LODEPNG_MPY_GEN_SRC_PP} ${lodepng_core_header} > ${LODEPNG_MPY_GEN_SRC}
-                    DEPENDS ${LODEPNG_MPY_GEN_SRC_PP}
-                )
-    endif()
     #############################################
 
 
