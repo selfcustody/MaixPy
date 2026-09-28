@@ -44,9 +44,20 @@ static int rgb565_to_gray_core1(int core)
 
 void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi, bool find_inverted)
 {
+    list_init(out, sizeof(find_qrcodes_list_lnk_data_t));
+
     k_quirc_t *controller = k_quirc_new();
-    k_quirc_resize(controller, roi->w, roi->h);
-    uint8_t *grayscale_image = k_quirc_begin(controller, NULL, NULL);
+    if (!controller) {
+        return;
+    }
+    uint8_t *grayscale_image = NULL;
+    if (k_quirc_resize(controller, roi->w, roi->h) == 0) {
+        grayscale_image = k_quirc_begin(controller, NULL, NULL);
+    }
+    if (!grayscale_image) {
+        k_quirc_destroy(controller);
+        return;
+    }
 
     switch (ptr->bpp) {
         case IMAGE_BPP_BINARY: {
@@ -104,7 +115,6 @@ void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi, bool find_i
     }
 
     k_quirc_end(controller, find_inverted);
-    list_init(out, sizeof(find_qrcodes_list_lnk_data_t));
 
     int num_codes = k_quirc_count(controller);
     for (int i = 0; i < num_codes; i++) {
