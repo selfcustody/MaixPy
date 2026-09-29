@@ -304,6 +304,8 @@ if(CONFIG_COMPONENT_MICROPYTHON_ENABLE)
     # k_quirc QR code detector (used by omv/img/qrcode.c)
     list(APPEND ADD_INCLUDE "${mpy_port_dir}/src/k_quirc/include")
     append_srcs_dir(ADD_SRCS "port/src/k_quirc/src")
+    # ESP32-P4 vector kernels, not for the K210
+    list(FILTER ADD_SRCS EXCLUDE REGEX "k_quirc_pie\\.S$")
     add_definitions(-DK_QUIRC_ADAPTIVE_THRESHOLD -DK_QUIRC_BILINEAR_THRESHOLD -DK_QUIRC_DUAL_CORE)
     # secp256k1
     if(CONFIG_MAIXPY_SECP256K1_ENABLE)
