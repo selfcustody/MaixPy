@@ -6,6 +6,8 @@ set(CMAKE_C_FLAGS 	-mcmodel=medany
                     -fno-common
                     -ffunction-sections
                     -fdata-sections
+                    -flto
+                    -ffat-lto-objects
                     -fstrict-volatile-bitfields
                     -fno-zero-initialized-in-bss
                     -ffast-math
@@ -49,6 +51,8 @@ set(CMAKE_CXX_FLAGS -mcmodel=medany
                     -fno-common
                     -ffunction-sections
                     -fdata-sections
+                    -flto
+                    -ffat-lto-objects
                     -fstrict-volatile-bitfields
                     -fno-zero-initialized-in-bss
                     -Os
@@ -88,6 +92,7 @@ set(LINK_FLAGS ${LINK_FLAGS}
             kendryte_sdk/libkendryte_sdk.a  main/libmain.a
             -Wl,--no-whole-archive
             -Wl,--end-group
+            -Wl,--allow-multiple-definition
             )
 set(CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS}
                         ${LINK_FLAGS}
