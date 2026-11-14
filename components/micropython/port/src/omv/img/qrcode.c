@@ -15,6 +15,7 @@
 #include "imlib.h"
 #include "framebuffer.h"
 #include "k_quirc.h"
+#include "py/nlr.h"
 #ifdef IMLIB_ENABLE_QRCODES
 
 // Dual-core support for parallel processing
@@ -42,11 +43,64 @@ static int rgb565_to_gray_core1(int core)
     return 0;
 }
 
+static void collect_qrcodes(list_t *out, k_quirc_t *controller, rectangle_t *roi)
+{
+    int num_codes = k_quirc_count(controller);
+    for (int i = 0; i < num_codes; i++) {
+        k_quirc_result_t result;
+        if (k_quirc_decode(controller, i, &result) != K_QUIRC_SUCCESS || !result.valid) {
+            continue;
+        }
+
+        find_qrcodes_list_lnk_data_t lnk_data;
+        rectangle_init(&lnk_data.rect,
+                       result.corners[0].x + roi->x,
+                       result.corners[0].y + roi->y, 0, 0);
+        for (size_t k = 1, l = (sizeof(result.corners) / sizeof(result.corners[0])); k < l; k++) {
+            rectangle_t temp;
+            rectangle_init(&temp, result.corners[k].x + roi->x, result.corners[k].y + roi->y, 0, 0);
+            rectangle_united(&lnk_data.rect, &temp);
+        }
+
+        lnk_data.corners[0].x = result.corners[0].x + roi->x; // top-left
+        lnk_data.corners[0].y = result.corners[0].y + roi->y;
+        lnk_data.corners[1].x = result.corners[1].x + roi->x; // top-right
+        lnk_data.corners[1].y = result.corners[1].y + roi->y;
+        lnk_data.corners[2].x = result.corners[2].x + roi->x; // bottom-right
+        lnk_data.corners[2].y = result.corners[2].y + roi->y;
+        lnk_data.corners[3].x = result.corners[3].x + roi->x; // bottom-left
+        lnk_data.corners[3].y = result.corners[3].y + roi->y;
+
+        lnk_data.payload_len = result.data.payload_len;
+        lnk_data.payload = xalloc(result.data.payload_len);
+        memcpy(lnk_data.payload, result.data.payload, result.data.payload_len);
+
+        lnk_data.version = result.data.version;
+        lnk_data.ecc_level = result.data.ecc_level;
+        lnk_data.mask = result.data.mask;
+        lnk_data.data_type = result.data.data_type;
+        lnk_data.eci = result.data.eci;
+
+        list_push_back(out, &lnk_data);
+    }
+}
+
 void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi, bool find_inverted)
 {
+    list_init(out, sizeof(find_qrcodes_list_lnk_data_t));
+
     k_quirc_t *controller = k_quirc_new();
-    k_quirc_resize(controller, roi->w, roi->h);
-    uint8_t *grayscale_image = k_quirc_begin(controller, NULL, NULL);
+    if (!controller) {
+        return;
+    }
+    uint8_t *grayscale_image = NULL;
+    if (k_quirc_resize(controller, roi->w, roi->h) == 0) {
+        grayscale_image = k_quirc_begin(controller, NULL, NULL);
+    }
+    if (!grayscale_image) {
+        k_quirc_destroy(controller);
+        return;
+    }
 
     switch (ptr->bpp) {
         case IMAGE_BPP_BINARY: {
@@ -104,45 +158,16 @@ void imlib_find_qrcodes(list_t *out, image_t *ptr, rectangle_t *roi, bool find_i
     }
 
     k_quirc_end(controller, find_inverted);
-    list_init(out, sizeof(find_qrcodes_list_lnk_data_t));
 
-    int num_codes = k_quirc_count(controller);
-    for (int i = 0; i < num_codes; i++) {
-        k_quirc_result_t result;
-        if (k_quirc_decode(controller, i, &result) != K_QUIRC_SUCCESS || !result.valid) {
-            continue;
-        }
-
-        find_qrcodes_list_lnk_data_t lnk_data;
-        rectangle_init(&lnk_data.rect,
-                       result.corners[0].x + roi->x,
-                       result.corners[0].y + roi->y, 0, 0);
-        for (size_t k = 1, l = (sizeof(result.corners) / sizeof(result.corners[0])); k < l; k++) {
-            rectangle_t temp;
-            rectangle_init(&temp, result.corners[k].x + roi->x, result.corners[k].y + roi->y, 0, 0);
-            rectangle_united(&lnk_data.rect, &temp);
-        }
-
-        lnk_data.corners[0].x = result.corners[0].x + roi->x; // top-left
-        lnk_data.corners[0].y = result.corners[0].y + roi->y;
-        lnk_data.corners[1].x = result.corners[1].x + roi->x; // top-right
-        lnk_data.corners[1].y = result.corners[1].y + roi->y;
-        lnk_data.corners[2].x = result.corners[2].x + roi->x; // bottom-right
-        lnk_data.corners[2].y = result.corners[2].y + roi->y;
-        lnk_data.corners[3].x = result.corners[3].x + roi->x; // bottom-left
-        lnk_data.corners[3].y = result.corners[3].y + roi->y;
-
-        lnk_data.payload_len = result.data.payload_len;
-        lnk_data.payload = xalloc(result.data.payload_len);
-        memcpy(lnk_data.payload, result.data.payload, result.data.payload_len);
-
-        lnk_data.version = result.data.version;
-        lnk_data.ecc_level = result.data.ecc_level;
-        lnk_data.mask = result.data.mask;
-        lnk_data.data_type = result.data.data_type;
-        lnk_data.eci = result.data.eci;
-
-        list_push_back(out, &lnk_data);
+    // xalloc() raises through NLR when memory runs out. The decoder lives
+    // outside the GC heap, so free it before passing the exception on.
+    nlr_buf_t nlr;
+    if (nlr_push(&nlr) == 0) {
+        collect_qrcodes(out, controller, roi);
+        nlr_pop();
+    } else {
+        k_quirc_destroy(controller);
+        nlr_jump(nlr.ret_val);
     }
 
     k_quirc_destroy(controller);
